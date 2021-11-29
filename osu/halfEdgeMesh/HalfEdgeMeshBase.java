@@ -31,19 +31,20 @@ import java.util.*;
 public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE_TYPE extends HalfEdgeBase, 
 		CELL_TYPE extends CellBase> {
 	
-	/// Class factory for creating new vertices, half_edges, and cells.
-	/// - Creates objects of type VERTEX_TYPE, HALF_EDGE_TYPE or CELL_TYPE.
-	///- The concrete class derived from HalfEdgeMeshBase needs to create
-	///   this object.
+	/** Class factory for creating new vertices, half_edges, and cells.
+	 *  - Creates objects of type VERTEX_TYPE, HALF_EDGE_TYPE or CELL_TYPE.
+	 *  - The concrete class derived from HalfEdgeMeshBase needs to create
+	 *    this object.
+	 */
 	protected HalfEdgeMeshFactoryBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> factory;
 
-	/// Hash table of all vertices.
+	/** Hash table of all vertices. */
 	protected HashMap<Integer,VERTEX_TYPE> vertex_hashtable = new HashMap<Integer,VERTEX_TYPE>();
 	
-	/// Hash table of all half edges.
+	/** Hash table of all half edges. */
 	protected HashMap<Integer,HALF_EDGE_TYPE> half_edge_hashtable = new HashMap<Integer,HALF_EDGE_TYPE>();
 	
-	/// Hash table of all cells.
+	/** Hash table of all cells. */
 	protected HashMap<Integer,CELL_TYPE> cell_hashtable = new HashMap<Integer,CELL_TYPE>();
 	
 	/// Upper bound on the vertex index.  
@@ -57,6 +58,161 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 	/// Upper bound on the cell index.  
 	/// - Could be greater than the maximum if some half edges are deleted.
 	protected int _max_cell_index = -1;
+	
+	
+	// Get functions.
+	
+	/** Return vertex with index iv. */
+	public VERTEX_TYPE Vertex(int iv)
+	{ return vertex_hashtable.get(iv); }
+	
+	/** Return set of vertex indices (vertex_hashtable keys). */
+	public Set<Integer> VertexIndices()
+	{ return vertex_hashtable.keySet(); }
+		
+	/** Return half edge with index ihalf_edge. */
+	public HALF_EDGE_TYPE HalfEdge(int ihalf_edge)
+	{ return half_edge_hashtable.get(ihalf_edge); }
+	
+	/** Return set of half edge indices (half_edge_hashtable keys). */
+	public Set<Integer> HalfEdgeIndices()
+	{ return half_edge_hashtable.keySet(); }
+	
+	/** Return cell with index icell. */
+	public CELL_TYPE Cell(int icell)
+	{ return cell_hashtable.get(icell); }
+	
+	/** Return set of cell indices (cell_hasthable keys). */
+	public Set<Integer> CellIndices()
+	{ return cell_hashtable.keySet(); }
+	
+	/** Return number of vertices. (Number of vertices in vertex_hashtable.) */
+	public int NumVertices()
+	{ return vertex_hashtable.size(); }
+	
+	/** Return number of half edges. (Number of half edges in half_edge_hashtable.) */
+	public int NumHalfEdges()
+	{ return half_edge_hashtable.size(); }
+	
+	/** Return number of cells. (Number of cells in cell_hashtable.) */
+	public int NumCells()
+	{ return cell_hashtable.size(); }
+	
+	
+	/** Return max index in a hashtable.
+	 * - Return -1 if hashtable is empty.
+	 * - Note: This is a time consuming operation that inspects all the hashtable keys.
+	 * @param <VALUE_TYPE>
+	 * @param hashtable
+	 * @return
+	 */
+	protected <VALUE_TYPE> int _MaxIndex(HashMap<Integer,VALUE_TYPE> hashtable)
+	{
+		if (hashtable.size() == 0) { return(-1); }
+		
+		// Otherwise:
+		return Collections.max(hashtable.keySet());
+	}
+	
+	/** Return upper bound on vertex indices in the half edge mesh.
+	 * <ul> 
+	 * 		<li> Return -1 if there are no vertices.
+	 *      <li> MaxVertexIndex() could be greater than the maximum vertex index
+	 *      	if some vertices have been deleted.
+	 * </ul> 
+	 */
+	public int MaxVertexIndex()
+	{ return _max_vertex_index; }
+	
+	/** Return upper bound on half edge indices in the half edge mesh.
+	 * <ul> 
+	 * 		<li> Return -1 if there are no half edges.
+	 * 		<li> MaxHalfEdgeIndex() could be greater than the maximum half edge index
+	 *      	 if some half edges have been deleted.
+	 * </ul>
+	 */
+	public int MaxHalfEdgeIndex()
+	{ return _max_half_edge_index; }
+	
+	/** Return upper bound on cell indices in the half edge mesh.
+	 * <ul> 
+	 * 		<li> Return -1 if there are no cells. 
+	 * 		<li> MaxCellIndex() could be greater than the maximum cell index
+	 *      	 if some cells have been deleted.
+	 * </ul>
+	 */
+	public int MaxCellIndex()
+	{ return _max_cell_index; }
+	
+	
+	// Count functions
+	
+	/** Count the number of isolated vertices.
+	 * - Added: 11-28-2021 - RW
+	 * @return
+	 */
+	public int CountNumIsolatedVertices()
+	{
+		int num_isolated_vertices = 0;
+		for (Integer iv: VertexIndices()) {
+			VERTEX_TYPE v = Vertex(iv);
+			if (v.NumHalfEdgesFrom() == 0)
+			{ num_isolated_vertices++; }
+		}
+		
+		return num_isolated_vertices;
+	}
+	
+	/** Count the number of boundary edges.
+	 * - Added: 11-28-2021 - RW
+	 * @return
+	 */
+	public int CountNumBoundaryEdges()
+	{
+		int num_boundary_edges = 0;
+		for (Integer ihalf_edge: HalfEdgeIndices()) {
+			HALF_EDGE_TYPE half_edge = HalfEdge(ihalf_edge);
+			if (half_edge.IsBoundary())
+			{ num_boundary_edges++; }
+		}
+		
+		return num_boundary_edges;
+	}
+	
+	/** Count number of cells with a given number of vertices.
+	 * - Added: 11-28-2021 - RW
+	 * @return
+	 */
+	public int CountNumCellsOfSize(int numv)
+	{
+		int num_cells = 0;
+		for (Integer icell: CellIndices()) {
+			CELL_TYPE cell = Cell(icell);
+			if (cell.NumVertices() == numv)
+			{ num_cells++; }
+		}
+		
+		return num_cells;
+	}
+	
+	/** Count number of cells with number of vertices
+	 *  greater than or equal to.
+	 * @return
+	 */
+	public int CountNumCellsOfSizeGE(int numv)
+	{
+		int num_cells = 0;
+		for (Integer icell: CellIndices()) {
+			CELL_TYPE cell = Cell(icell);
+			if (cell.NumVertices() >= numv)
+			{ num_cells++; }
+		}
+		
+		return num_cells;
+	}
+	
+	
+	// *** Internal (protected) functions ***
 	
 	/// Create vertex with index iv, if it does not yet exist.
 	/// - Returns reference to vertex.
@@ -160,17 +316,40 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 		
 		vfrom.half_edge_from.add(half_edge);
 		
-		
-
-		vto._MoveBoundaryHalfEdgeToHalfEdgeFrom0();
-		vfrom._MoveBoundaryHalfEdgeToHalfEdgeFrom0();
+		// Deleted: 11-28-2021 - RW
+		// Revised version of _MoveBoundaryHalfEdgeToHalfEdgeFrom(),
+		//   requires prev_half_edge_in_cell to be set before call.
+		// Calls have been moved to _AddCell().
+		// Making these calls here will throw an exception.
+		//vto._MoveBoundaryHalfEdgeToHalfEdgeFrom0();
+		//vfrom._MoveBoundaryHalfEdgeToHalfEdgeFrom0();
 		
 		return half_edge;
 	}
 	
+	/** Move boundary half edge to half_edge_from[0] for each vertex
+	 *  in cell_vertex[].
+	 * @param cell_vertex
+	 * @throws Exception
+	 * - Added: 11-24-2021 - RW
+	 */
+	protected void _MoveBoundaryHalfEdgeToHalfEdgeFrom0
+	(ArrayList<Integer> cell_vertex) throws Exception
+	{
+		for (int i = 0; i < cell_vertex.size(); i++) {
+			int iv = cell_vertex.get(i);
+			VERTEX_TYPE v = Vertex(iv);
+			if (v == null) {
+				throw new Exception("Programming error. Attempt to access non-existant vertex in _MoveBoundaryHalfEdgeToHalfEdgeFrom0()");
+			}
+			
+			v._MoveBoundaryHalfEdgeToHalfEdgeFrom0();
+		}
+	}
 	
-	/// Add cell with index icell.
-	/// @pre No existing cell has index icell.
+	
+	/** Add cell with index icell.
+	 	@pre No existing cell has index icell. */
 	protected CELL_TYPE _AddCell(int icell)
 	{
 		/// Cast to CELL_TYPE. Needed even though factory.NewCell() should create cell of type CELL_TYPE.
@@ -182,6 +361,8 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 	}
 	
 	
+	// *** Public AddVertices(), AddCell() functions ***
+
 	/** Add vertices [0..(numv-1)] to the mesh. */
 	public void AddVertices(int numv) throws Exception
 	{
@@ -224,7 +405,12 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 			hprev = half_edge;
 		}
 		
+		// Link last half edge (hprev) and first half edge (half_edge0).
 		_LinkHalfEdgesInCell(hprev, half_edge0);
+
+		// - Added: 11-28-2021 - RW
+		// - This call must be AFTER _LinkHalfEdgesInCell(hprev, half_edge0).
+		_MoveBoundaryHalfEdgeToHalfEdgeFrom0(cell_vertex);
 		
 		if (cell_vertex.size() != cell.NumVertices()) {
 			throw new Exception("Error in AddCell().  Incorrect number of vertices in cell.");
@@ -259,85 +445,7 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 	
 	
 	
-	// Get functions.
-	
-	/** Return vertex with index iv. */
-	public VERTEX_TYPE Vertex(int iv)
-	{ return vertex_hashtable.get(iv); }
-	
-	/** Return set of vertex indices (vertex_hashtable keys). */
-	public Set<Integer> VertexIndices()
-	{ return vertex_hashtable.keySet(); }
-		
-	/** Return half edge with index ihalf_edge. */
-	public HALF_EDGE_TYPE HalfEdge(int ihalf_edge)
-	{ return half_edge_hashtable.get(ihalf_edge); }
-	
-	/** Return set of half edge indices (half_edge_hashtable keys). */
-	public Set<Integer> HalfEdgeIndices()
-	{ return half_edge_hashtable.keySet(); }
-	
-	/** Return cell with index icell. */
-	public CELL_TYPE Cell(int icell)
-	{ return cell_hashtable.get(icell); }
-	
-	/** Return set of cell indices (cell_hasthable keys). */
-	public Set<Integer> CellIndices()
-	{ return cell_hashtable.keySet(); }
-	
-	/** Return number of vertices. (Number of vertices in vertex_hashtable.) */
-	public int NumVertices()
-	{ return vertex_hashtable.size(); }
-	
-	/** Return number of half edges. (Number of half edges in half_edge_hashtable.) */
-	public int NumHalfEdges()
-	{ return half_edge_hashtable.size(); }
-	
-	/** Return number of cells. (Number of cells in cell_hashtable.) */
-	public int NumCells()
-	{ return cell_hashtable.size(); }
-	
-	
-	/// Return max index in a hashtable.
-	/// - Return -1 if hashtable is empty.
-	/// - Note: This is a time consuming operation that inspects all the hashtable keys.
-	protected <VALUE_TYPE> int _MaxIndex(HashMap<Integer,VALUE_TYPE> hashtable)
-	{
-		if (hashtable.size() == 0) { return(-1); }
-		
-		// Otherwise:
-		return Collections.max(hashtable.keySet());
-	}
-	
-	/** Return upper bound on vertex indices in the half edge mesh.
-	 * <ul> 
-	 * 		<li> Return -1 if there are no vertices.
-	 *      <li> MaxVertexIndex() could be greater than the maximum vertex index
-	 *      	if some vertices have been deleted.
-	 * </ul> 
-	 */
-	public int MaxVertexIndex()
-	{ return _max_vertex_index; }
-	
-	/** Return upper bound on half edge indices in the half edge mesh.
-	 * <ul> 
-	 * 		<li> Return -1 if there are no half edges.
-	 * 		<li> MaxHalfEdgeIndex() could be greater than the maximum half edge index
-	 *      	 if some half edges have been deleted.
-	 * </ul>
-	 */
-	public int MaxHalfEdgeIndex()
-	{ return _max_half_edge_index; }
-	
-	/** Return upper bound on cell indices in the half edge mesh.
-	 * <ul> 
-	 * 		<li> Return -1 if there are no cells. 
-	 * 		<li> MaxCellIndex() could be greater than the maximum cell index
-	 *      	 if some cells have been deleted.
-	 * </ul>
-	 */
-	public int MaxCellIndex()
-	{ return _max_cell_index; }
+
 	
 	
 	// Check routines.
@@ -831,5 +939,37 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 				manifoldV_info.VertexIndex();
 		
 		return manifoldE_info;
+	}
+	
+
+	/** Check that iv is the index of some vertex. */
+	public ErrorInfo CheckVertexIndex(int iv)
+	{
+		ErrorInfo error_info = new ErrorInfo();
+		
+		if (NumVertices() == 0) {
+			error_info.SetError(iv);
+			error_info.SetMessage("Mesh has no vertices.");
+			return error_info;
+		}
+		
+		if (iv < 0) {
+			error_info.SetError(iv);
+			error_info.SetMessage
+			("Illegal negative vertex index: " + String.valueOf(iv) +
+				"\n  Vertex indices cannot be negative.");
+			return error_info;
+		}
+		
+		if (iv > MaxVertexIndex()) {
+			error_info.SetError(iv);
+			error_info.SetMessage
+			("Illegal vertex index: " + String.valueOf(iv) +
+				"\n  Maximum vertex index: " + String.valueOf(MaxVertexIndex()));
+			return error_info;
+		}
+		
+		// No error.  iv is the index of some vertex.
+		return error_info;
 	}
 }

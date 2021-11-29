@@ -54,4 +54,10 @@ public abstract class CellBase {
 	public int NumVertices()
 	{ return(num_vertices); }
 	
+	/** Return true if cell has exactly 3 vertices.
+	 * - Added: 11-28-2021 - RW
+	 */
+	public boolean IsTriangle()
+	{ return (NumVertices() == 3); }
+	
 }

@@ -42,6 +42,11 @@ public abstract class VertexBase {
 	
 	protected List<HalfEdgeBase> half_edge_from = new ArrayList<HalfEdgeBase>();
 	
+	/// Move boundary half edge to half_edge_from[0].
+	/// - If there are no boundary half edges in half_edge_from[],
+	///   but half_edge_from[k]->PreviousHalfEdgeInCell() is a boundary half edge,
+	///   move half_edge_from[k] to half_edge_from[0].
+	/// - Revised 11-24-20221 - RW
 	protected void _MoveBoundaryHalfEdgeToHalfEdgeFrom0()
 	{
 		if (NumHalfEdgesFrom() < 1) {
@@ -52,9 +57,31 @@ public abstract class VertexBase {
 		if (KthHalfEdgeFrom(0).IsBoundary())
 		{ return; }
 		
+		// *** CAN START AT 1, BUT... ***
 		for (int k = 0; k < NumHalfEdgesFrom(); k++) {
 			HalfEdgeBase half_edge = KthHalfEdgeFrom(k);
 			if (half_edge.IsBoundary()) {
+				// Swap half_edge_from[0] and half_edge_from[k].
+				HalfEdgeBase temp = KthHalfEdgeFrom(0);
+				half_edge_from.set(0, half_edge);
+				half_edge_from.set(k, temp);
+				return;
+			}
+		}
+		
+		// No boundary half edges found.
+		
+		// Extra processing in case cells are inconsistently oriented.
+		// Check if half_edge_from[k]->PreviousHalfEdgeInCell()
+		//   is a boundary half edge for some k.
+		HalfEdgeBase prev_half_edge0 = 
+				KthHalfEdgeFrom(0).PrevHalfEdgeInCell();
+		if (prev_half_edge0.IsBoundary())
+		{ return; }
+		
+		for (int k = 1; k < NumHalfEdgesFrom(); k++) {
+			HalfEdgeBase half_edge = KthHalfEdgeFrom(k);
+			if (half_edge.PrevHalfEdgeInCell().IsBoundary()) {
 				// Swap half_edge_from[0] and half_edge_from[k].
 				HalfEdgeBase temp = KthHalfEdgeFrom(0);
 				half_edge_from.set(0, half_edge);
