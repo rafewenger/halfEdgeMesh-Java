@@ -35,7 +35,7 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 	/// - Creates objects of type VERTEX_TYPE, HALF_EDGE_TYPE or CELL_TYPE.
 	///- The concrete class derived from HalfEdgeMeshBase needs to create
 	///   this object.
-	HalfEdgeMeshFactoryBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> factory;
+	protected HalfEdgeMeshFactoryBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> factory;
 
 	/// Hash table of all vertices.
 	protected HashMap<Integer,VERTEX_TYPE> vertex_hashtable = new HashMap<Integer,VERTEX_TYPE>();
