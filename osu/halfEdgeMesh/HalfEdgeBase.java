@@ -144,7 +144,8 @@ public abstract class HalfEdgeBase {
 	public int CountNumHalfEdgesAroundEdge()
 	{ 
 		// Cannot have more than max_num half edges around an edge.
-		int max_num = FromVertex().NumHalfEdgesFrom() + ToVertex().NumHalfEdgesFrom();
+		int max_num = FromVertex().NumHalfEdgesFrom() + 
+						ToVertex().NumHalfEdgesFrom();
 		
 		int num = 1;
 		HalfEdgeBase half_edge = NextHalfEdgeAroundEdge();
@@ -154,6 +155,61 @@ public abstract class HalfEdgeBase {
 		}
 		
 		return num;
+	}
+	
+	
+	/** Return half edge with minimum index
+	 *    in cycle of half edges around edge.
+	 *  - Useful in getting a single half edge representing an edge.
+	 *  - Could return self.
+	 * - Added: 11-30-2021 - RW
+	 */
+	public HalfEdgeBase MinIndexHalfEdgeAroundEdge()
+	{
+		// Cannot have more than max_num half edges around an edge.
+		int max_num = FromVertex().NumHalfEdgesFrom() +
+						ToVertex().NumHalfEdgesFrom();
+		
+		HalfEdgeBase min_index_half_edge = this;
+		int min_index = Index();
+		
+		int k = 0;
+		HalfEdgeBase half_edge = NextHalfEdgeAroundEdge(); 
+		while (half_edge != this && k < max_num) {
+			if (half_edge.Index() < min_index) {
+				min_index_half_edge = half_edge;
+				min_index = half_edge.Index();
+			}
+			
+			half_edge = half_edge.NextHalfEdgeAroundEdge();
+			k++;
+		}
+		
+		return min_index_half_edge;
+	}
+	
+	/** Return previous half edge around edge. 
+	 *  - Added: 11-30-2021 - RW
+	 */
+	protected HalfEdgeBase FindPrevHalfEdgeAroundEdge() throws Exception
+	{
+		// Cannot have more than max_num half edges around an edge.
+		int max_numh =
+				FromVertex().NumHalfEdgesFrom() +
+				ToVertex().NumHalfEdgesFrom();
+		
+		HalfEdgeBase half_edge = NextHalfEdgeAroundEdge();
+		for (int k = 0; k < max_numh; k++) {
+			
+			if (this == half_edge.NextHalfEdgeAroundEdge())
+			{ return half_edge; }
+			
+			half_edge = half_edge.NextHalfEdgeAroundEdge();
+		}
+		
+		// Should never reach here. Data structure inconsistency.
+		throw new Exception
+			("Programming error.  Unable to find previous half edge around edge.");
 	}
 	
 	

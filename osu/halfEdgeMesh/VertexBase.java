@@ -34,19 +34,21 @@ import java.util.*;
  */
 public abstract class VertexBase {
 	
-	// Vertex dimension. Number of vertex coordinates.
+	/** Vertex dimension. Number of vertex coordinates. */
 	static final int DIMENSION = 3;
 	
-	/// index: Unique non-negative integer identifying the vertex.
+	/** index: Unique non-negative integer identifying the vertex. */
 	protected int index;
 	
+	/** Array of half edges whose from vertex is this. */
 	protected List<HalfEdgeBase> half_edge_from = new ArrayList<HalfEdgeBase>();
 	
-	/// Move boundary half edge to half_edge_from[0].
-	/// - If there are no boundary half edges in half_edge_from[],
-	///   but half_edge_from[k]->PreviousHalfEdgeInCell() is a boundary half edge,
-	///   move half_edge_from[k] to half_edge_from[0].
-	/// - Revised 11-24-20221 - RW
+	/** Move boundary half edge to half_edge_from[0].
+	 *  - If there are no boundary half edges in half_edge_from[],
+	 *    but half_edge_from[k]->PreviousHalfEdgeInCell() is a boundary half edge,
+	 *    move half_edge_from[k] to half_edge_from[0].
+	 *  - Revised 11-24-20221 - RW
+	 */
 	protected void _MoveBoundaryHalfEdgeToHalfEdgeFrom0()
 	{
 		if (NumHalfEdgesFrom() < 1) {
@@ -91,7 +93,7 @@ public abstract class VertexBase {
 		}
 	}
 
-	/***  Vertex coordinates */
+	/** Vertex coordinates */
 	public float[] coord = new float[DIMENSION];
 	
 	protected void Init()
@@ -127,6 +129,27 @@ public abstract class VertexBase {
 	public HalfEdgeBase KthHalfEdgeFrom(int k)
 	{ return(half_edge_from.get(k)); };
 
+	
+	/** Return true if vertex is on the boundary.
+	 * 	- Added 11-24-20221 - RW
+	 */
+	public boolean IsBoundary()
+	{
+		if (NumHalfEdgesFrom() == 0) {
+			// Vertex is not incident on any cells.
+			return true;
+		}
+		
+
+		// Vertex is on the boundary iff 
+		//   half_edge_from[0].IsBoundary() or
+		//   half_edge_from[0].PrevHalfEdgeInCell().IsBoundary().
+		HalfEdgeBase prev_half_edge = KthHalfEdgeFrom(0);
+		return (KthHalfEdgeFrom(0).IsBoundary() ||
+				prev_half_edge.IsBoundary());
+	}
+	
+	
 	/** Return incident half edge whose from vertex is this vertex
 	 *    and whose ToVertexIndex() is iv.
 	 * <ul> <li> Return null if no half edge found. </ul>

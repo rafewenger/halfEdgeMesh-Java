@@ -24,6 +24,8 @@ package osu.halfEdgeMesh;
 
 import java.util.*;
 
+import osu.halfEdgeMeshDCMT.VertexDCMTBase;
+
 
 /** Base class for storing half edge mesh.
  *  @see osu.halfEdgeMesh Package osu.halfEdgeMesh documentation.
@@ -149,7 +151,7 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 	
 	/** Count the number of isolated vertices.
 	 * - Added: 11-28-2021 - RW
-	 * @return
+	 * @return Number of isolated vertices.
 	 */
 	public int CountNumIsolatedVertices()
 	{
@@ -163,9 +165,27 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 		return num_isolated_vertices;
 	}
 	
+	
+	/** Count the number of mesh edges.
+	 *  - Added: 11-28-2021 - RW
+	 */
+	public int CountNumEdges()
+	{
+		int num_edges = 0;
+		for (Integer ihalf_edge: HalfEdgeIndices()) {
+			HalfEdgeBase half_edge = HalfEdge(ihalf_edge);
+			HalfEdgeBase min_index_half_edge =
+					half_edge.MinIndexHalfEdgeAroundEdge();
+			if (half_edge == min_index_half_edge)
+			{ num_edges++; }
+		}
+		
+		return num_edges;
+	}
+	
 	/** Count the number of boundary edges.
 	 * - Added: 11-28-2021 - RW
-	 * @return
+	 * @return Number of boundary edges.
 	 */
 	public int CountNumBoundaryEdges()
 	{
@@ -181,7 +201,7 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 	
 	/** Count number of cells with a given number of vertices.
 	 * - Added: 11-28-2021 - RW
-	 * @return
+	 * @return Number of cells with numv vertices.
 	 */
 	public int CountNumCellsOfSize(int numv)
 	{
@@ -197,7 +217,7 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 	
 	/** Count number of cells with number of vertices
 	 *  greater than or equal to.
-	 * @return
+	 * @return Number of cells with numv or more vertices.
 	 */
 	public int CountNumCellsOfSizeGE(int numv)
 	{
@@ -209,6 +229,37 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 		}
 		
 		return num_cells;
+	}
+	
+	
+	/** Count number of triangles */
+	public int CountNumTriangles()
+	{ return CountNumCellsOfSize(3); }
+	
+	/** Count number of quadrilaterals */
+	public int CountNumQuads()
+	{ return CountNumCellsOfSize(4); }
+	
+	/** Count number of pentagons */
+	public int CountNumPentagons()
+	{ return CountNumCellsOfSize(5); }
+	
+	
+	/** Find half edge (v0,v1) or (v1,v0), if it exists.
+	 * - return null if no edge found.
+	 * - Added: 11-30-2021 - RW
+	 */
+	HalfEdgeBase FindEdge(VertexBase v0, VertexBase v1)
+	{
+		HalfEdgeBase half_edge =
+				v0.FindIncidentHalfEdge(v1.Index());
+		
+		if (half_edge != null)
+		{ return half_edge; }
+		
+		half_edge = v1.FindIncidentHalfEdge(v0.Index());
+		
+		return half_edge;
 	}
 	
 	
@@ -274,7 +325,20 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 		hprev.next_half_edge_in_cell = hnext;
 		hnext.prev_half_edge_in_cell = hprev;
 	}
-		
+	
+	
+	/** Relink half edges in cell. 
+	 *  - No checks.
+	 *  - Added: 11-24-2021 - RW
+	 */
+	protected void _RelinkHalfEdgesInCell
+	(HalfEdgeBase hprev, HalfEdgeBase hnext)
+	{
+		hprev.next_half_edge_in_cell = hnext;
+		hnext.prev_half_edge_in_cell = hprev;
+	}
+	
+	
 	/// Add half edge.
 	/// - Returns new half edge.
 	/// @pre No existing half edge has index ihalf_edge.
@@ -359,7 +423,7 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 		_max_cell_index = Math.max(_max_cell_index, icell);
 		return cell;
 	}
-	
+
 	
 	// *** Public AddVertices(), AddCell() functions ***
 
@@ -444,8 +508,180 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 	}
 	
 	
+	// *** Delete routines ***
 	
+	/** Remove half edge from half_edge_from list of its from_vertex. 
+	 * 	- Added: 11-28-2021 - RW
+	 */
+	protected void 
+		_RemoveHalfEdgeFromVertexList(HalfEdgeBase half_edge0)
+	{
+		VertexBase v0 = half_edge0.FromVertex();
+		int list_length = v0.NumHalfEdgesFrom();
+		int ilast = list_length-1;
+		
+		for (int k = 0; k < list_length; k++) {
+			HalfEdgeBase half_edge = 
+					v0.KthHalfEdgeFrom(k);
+			
+			if (half_edge0 == half_edge) {
+				HalfEdgeBase last_half_edge =
+						v0.KthHalfEdgeFrom(ilast);
+				v0.half_edge_from.set(k, last_half_edge);
+				v0.half_edge_from.remove(ilast);
+				
+				return;	
+			}	
+		}
+	}
+	
+	
+	/** Move all half edges from v0 to be from v1.
+	 *  - Moves v0.half_edge_from[] to v1.half_edge_from[].
+	 *  - Added: 11-30-2021 - RW
+	 */
+	protected void 
+		_MoveVertexHalfEdgeFromList(VertexBase v0, VertexBase v1)
+	{
+		for (int k = 0; k < v0.NumHalfEdgesFrom(); k++) {
+			HalfEdgeBase half_edge = v0.KthHalfEdgeFrom(k);
+			half_edge.from_vertex = v1;
+		}
+		
+		// Append v0.half_edge_from[] to v1.half_edge_from[].
+		v1.half_edge_from.addAll(v0.half_edge_from);
+		
+		v0.half_edge_from.clear();
+	}
+	
+	
+	/** Swap next half edge around edge.
+	 *  - Added: 11-30-2021 - RW
+	 */
+	protected void
+		_SwapNextHalfEdgeAroundEdge
+		(HalfEdgeBase half_edgeA, HalfEdgeBase half_edgeB)
+	{
+		HalfEdgeBase tempA = half_edgeA.NextHalfEdgeAroundEdge();
+		HalfEdgeBase tempB = half_edgeB.NextHalfEdgeAroundEdge();
+		
+		half_edgeA.next_half_edge_around_edge = tempB;
+		half_edgeB.next_half_edge_around_edge = tempA;
+	}
+	
+	
+	/** Find some half edge (v0,v1) or (v1,v0) and link with half_edgeA
+	 *    in half edge around edge cycle.
+	 *  - If no half edge found, then do nothing.
+	 *  - Added: 11-30-2021 - RW
+	 */
+	protected void 
+		_FindAndLinkHalfEdgeAroundEdge
+		(VertexBase v0, VertexBase v1, HalfEdgeBase half_edgeA)
+	{
+		HalfEdgeBase half_edgeB = FindEdge(v0,v1);
+		
+		if (half_edgeB != null) {
+			
+			_SwapNextHalfEdgeAroundEdge(half_edgeA, half_edgeB);
+			
+			// half_edgeA is no longer a boundary edge.
+			v1._MoveBoundaryHalfEdgeToHalfEdgeFrom0();
+		}
+	}
+	
+	
+	
+	/** Delete half edge.
+	 * 	- Added: 11-30-2021 - RW 
+	 */
+	protected void 
+		_DeleteHalfEdge(HalfEdgeBase half_edge0) throws Exception
+	{
+		if (!half_edge0.IsBoundary()) {
+			HalfEdgeBase next_half_edge_around_edge = 
+					half_edge0.NextHalfEdgeAroundEdge();
+			HalfEdgeBase prev_half_edge_around_edge =
+					half_edge0.FindPrevHalfEdgeAroundEdge();
+			
+			prev_half_edge_around_edge.next_half_edge_around_edge =
+					next_half_edge_around_edge;
+		}
+		
+		_RemoveHalfEdgeFromVertexList(half_edge0);
+		
+		int ihalf_edge0 = half_edge0.Index();
+		half_edge_hashtable.remove(ihalf_edge0);
+	}
 
+	
+	/** Delete half edges around edge.
+	 *  - Added: 11-30-2021 - RW
+	 *  @param max_numh Upper bound on the number of half edges
+	 *      around edge half_edge0.
+	 * 		- Avoids infinite loop if data structure is corrupted.
+	 */
+	protected void
+		_DeleteHalfEdgesAroundEdge
+		(HalfEdgeBase half_edge0, int max_numh)
+	{
+		HalfEdgeBase half_edge = half_edge0;
+		
+		for (int k = 0; k < max_numh; k++) {
+			HalfEdgeBase next_half_edge_around_edge =
+					half_edge.NextHalfEdgeAroundEdge();
+			
+			if (next_half_edge_around_edge == half_edge) {
+				// Delete half edge.
+				int ihalf_edge = half_edge.Index();
+				half_edge_hashtable.remove(ihalf_edge);
+				_RemoveHalfEdgeFromVertexList(half_edge);
+				
+				
+				// *** DEBUG ***
+				/*
+				System.err.printf("Deleting half edge %d%n", ihalf_edge);
+				*/
+				
+				return;
+			}
+			else {
+				// Delete next_half_edge_around_edge.
+				half_edge.next_half_edge_around_edge =
+						next_half_edge_around_edge.NextHalfEdgeAroundEdge();
+				int inext_half_edge = next_half_edge_around_edge.Index();
+				half_edge_hashtable.remove(inext_half_edge);
+				
+				// *** DEBUG ***
+				/*
+				System.err.printf("Deleting half edge %d%n", inext_half_edge);
+				*/
+				
+				_RemoveHalfEdgeFromVertexList(next_half_edge_around_edge);
+			}
+		}
+	}
+	
+	
+	/** Delete vertex.
+	 *  - Added: 12-01-2021 - RW
+	 */
+	protected void _DeleteVertex(VertexBase v)
+	{
+		int iv = v.Index();
+		vertex_hashtable.remove(iv);
+	}
+	
+	
+	/** Delete cell.
+	 * 	- Added: 11-30-2021 - RW 
+	 */
+	protected void _DeleteCell(CellBase cell)
+	{
+		int icell = cell.Index();
+		cell_hashtable.remove(icell);
+	}
+	
 	
 	
 	// Check routines.
@@ -769,8 +1005,15 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 			int cell_numv = cell.NumVertices();
 			HalfEdgeBase half_edge = half_edge0;
 			
+			// *** DEBUG ***
+			//System.err.printf("Checking cell %d%n", cell.Index());
+			//System.err.println("  First half edge: " + half_edge.IndexAndEndpointsStr(","));
+			
 			for (int k = 1; k < cell_numv; k++) {
 				half_edge = half_edge.NextHalfEdgeInCell();
+				
+				// *** DEBUG ***
+				//System.err.println("  Next half edge: " + half_edge.IndexAndEndpointsStr(","));
 				
 				if (half_edge == half_edge0) {
 					error_info.SetError(icell);
@@ -966,6 +1209,14 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 			error_info.SetMessage
 			("Illegal vertex index: " + String.valueOf(iv) +
 				"\n  Maximum vertex index: " + String.valueOf(MaxVertexIndex()));
+			return error_info;
+		}
+		
+		if (Vertex(iv) == null) {
+			error_info.SetError(iv);;
+			error_info.SetMessage
+			("Illegal vertex index: " + String.valueOf(iv) +
+				"\n  Vertex does not exist.");
 			return error_info;
 		}
 		
