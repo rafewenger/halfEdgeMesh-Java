@@ -423,8 +423,12 @@ public class decimate_mesh {
 			{ flag_collapse_short_edges = true; }
 			else if (s.equals("-allow_non_manifold"))
 			{ flag_allow_non_manifold = true; }
-			else if (s.equals("-s"))
-			{ flag_silent = true; }
+			else if (s.equals("-fail_on_non_manifold"))
+			{ flag_fail_on_non_manifold = true; }
+			else if (s.equals("-s")) {
+				flag_silent = true;
+				flag_terse = true;
+			}
 			else if (s.equals("-terse"))
 			{ flag_terse = true; }
 			else if (s.equals("-no_warn")) 
@@ -595,7 +599,11 @@ public class decimate_mesh {
 	
 	static void usage_msg(PrintStream out)
 	{
-		out.println("Usage: decimate_mesh [-s] [-no_warn] [-time] [-h] <input filename> [<output_filename>]");
+		out.println("Usage: decimate_mesh [OPTIONS] <input filename> [<output_filename>]");
+		out.println("OPTIONS:");
+		out.println("  [-collapse_edge] [-collapse_short_edges]");
+		out.println("  [-allow_non_manifold] [-fail_on_non_manifold]");
+		out.println("  [-s | -terse] [-no_warn] [-time] [-h]");
 	}
 	
 	
@@ -608,7 +616,26 @@ public class decimate_mesh {
 	static void help()
 	{
 		usage_msg(System.out);
-		System.out.println();
+		out.println();
+		out.println("decimate_mesh - Decimate mesh.");
+		out.println("  Collapse/split/join mesh edges or cells.");
+		out.println("  (Split/join not yet implemented.)");
+		out.println();
+		out.println("Options:");
+		out.println("-collapse_edges:  Prompt and collapse edges.");
+		out.println("-collapse_short_edges: Attemp to collapse shortest edge in each cell.");
+		out.println("-allow_non_manifold: Allow edge collapses or cell splits");
+		out.println("     that create non-manifold conditions.");
+		out.println("-fail_on_non_manifold:  Exit with non-zero return code (fail)");
+		out.println("     if non-manifold or inconsistent orientations detected.");
+		out.println("-terse:   Terse output. Suppress messages output after each");
+		out.println("     collapse/join/split iteration.");
+		out.println("   Does not suppress warning messages at each iteration.");
+		out.println("   Does not suppress final mesh information.");
+		out.println("-s:       Silent. Output only warnings and error messages.");
+		out.println("-no_warn: Do not output non-manifold or inconsistent orientation warnings.");
+		out.println("-time:    Report run time.");
+		out.println("-h:       Output this help message and exit.");
 		System.exit(0);
 	}
 }
