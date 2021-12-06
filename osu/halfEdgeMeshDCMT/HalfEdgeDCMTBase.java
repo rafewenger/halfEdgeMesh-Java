@@ -45,6 +45,16 @@ public class HalfEdgeDCMTBase extends HalfEdgeBase {
 	{ return ((CellDCMTBase) cell); }
 	
 	
+	// *** Set functions ***
+	// (Needed because osu.halfEdgeMeshDCMT is a different package than osu.halfEdgeMesh.)
+	
+	/** Set cell.
+	 *  - HalfEdgeMeshDCMTBase does not have access to HalfEdgeBase cell.
+	 */
+	protected void SetCell(CellDCMTBase cell)
+	{ this.cell = cell; }
+	
+
 	// *** Functions to compute mesh information ***
 	
 	/** Compute length squared of the half edge */

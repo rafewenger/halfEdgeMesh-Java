@@ -43,14 +43,7 @@ public abstract class VertexDCMTBase extends VertexBase {
 	/** Set visited_flag to flag in all neighbors of this. */
 	protected void 
 		_SetVisitedFlagsInAdjacentVertices(boolean flag)
-	{
-		// *** DEBUG ***
-		/*
-		System.out.printf("Calling _SetVisitedFlagsInAdjacentVertices on vertex %d%n",
-							Index());
-		System.out.printf("  flag: %b%n", flag);
-		*/
-		
+	{	
 		for (int k = 0; k < NumHalfEdgesFrom(); k++) {
 			HalfEdgeDCMTBase half_edgeA = KthHalfEdgeFrom(k);
 			half_edgeA.ToVertex().visited_flag = flag;
@@ -76,5 +69,40 @@ public abstract class VertexDCMTBase extends VertexBase {
 	/** Set visited_flag to false in all neighbors of this. */
 	protected void _ClearVisitedFlagsInAdjacentVertices()
 	{ _SetVisitedFlagsInAdjacentVertices(false);	}
+
 	
+	/** Compare first and last half edges in half_edges_from[].
+	 *  - Swap half edges if last half edge is a boundary edge
+	 *    and first half edge is internal or if both are internal,
+	 *    but half_edge_from[ilast.PrevHalfEdgeInCell() is boundary,
+	 *    while half_edge_from[0].PrevHalfEdgeInCell() is internal.
+	 */
+	protected void _ProcessFirstLastHalfEdgesFrom()
+	{
+		if (NumHalfEdgesFrom() < 2) {
+			// No swap
+			return;
+		}
+		
+		if (KthHalfEdgeFrom(0).IsBoundary()) {
+			// No swap
+			return;
+		}
+		
+		int ilast = NumHalfEdgesFrom()-1;
+		if (KthHalfEdgeFrom(ilast).IsBoundary()) {
+			_SwapHalfEdgesInHalfEdgeFromList(0,ilast);
+			return;
+		}
+		
+		if (KthHalfEdgeFrom(0).PrevHalfEdgeInCell().IsBoundary()) {
+			// No swap
+			return;
+		}
+		
+		if (KthHalfEdgeFrom(ilast).PrevHalfEdgeInCell().IsBoundary()) {
+			_SwapHalfEdgesInHalfEdgeFromList(0,ilast);
+			return;
+		}
+	}
 }

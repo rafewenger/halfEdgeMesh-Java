@@ -95,9 +95,6 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 			{ cell.SetHalfEdge(half_edge.NextHalfEdgeInCell()); }
 			
 			if (cell.IsTriangle()) {
-				// *** DEBUG ***
-				//System.err.printf("Deleting cell %d%n", cell.Index());
-				
 				// Cell is a triangle.
 				// Collapsing half edge removes cell.
 				VertexDCMTBase v2 = prev_half_edge.FromVertex();
@@ -138,8 +135,86 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 		return v1;
 	}
 	
+	
+	/** Split cell with diagonal connecting the two from vertices.
+	 *  - Diagonal (half_edgeA.FromVertex(), half_edgeB.FromVertex()).
+	 */
+	public HalfEdgeDCMTBase
+		SplitCell(int ihalf_edgeA, int ihalf_edgeB)
+			throws Exception
+	{
+		HALF_EDGE_TYPE half_edgeA = HalfEdge(ihalf_edgeA);
+		HALF_EDGE_TYPE half_edgeB = HalfEdge(ihalf_edgeB);
+		
+		if ((half_edgeA == null) || (half_edgeB == null)) {
+			throw new Exception("Programming error. Arguments to SplitCell are not half edge indices.");
+		}
+		
+		if (IsIllegalSplitCell(half_edgeA, half_edgeB))
+		{ return null; }
+		
+		VertexDCMTBase vA = half_edgeA.FromVertex();
+		VertexDCMTBase vB = half_edgeB.FromVertex();
+		
+		HalfEdgeBase half_edgeC = FindEdge(vA, vB);
+		
+		CellDCMTBase cellA = half_edgeA.Cell();
+		int numvA = cellA.NumVertices();
+		int icellA = MaxCellIndex()+1;
+		CellDCMTBase cellB = _AddCell(icellA);
+		int idiagA = MaxHalfEdgeIndex()+1;
+		HALF_EDGE_TYPE diagA = _AddHalfEdge(idiagA, cellA, vB);
+		int idiagB = MaxHalfEdgeIndex()+1;
+		HALF_EDGE_TYPE diagB = _AddHalfEdge(idiagB, cellB, vA);
+		
+		// Link diagA and diagB around edge.
+		_LinkHalfEdgesAroundEdge(diagA, diagB);
+		
+		if (half_edgeC != null) {
+			// Link half_edge_around_edge cycle of half_edgeC and diagA/diagB.
+			_SwapNextHalfEdgeAroundEdge(half_edgeC, diagA);
+		}
+		
+		// Change cell of half edges from half_edgeB to half_edgeA.
+		HalfEdgeDCMTBase half_edge = half_edgeB;
+		int k = 0;
+		while ((k < numvA) && (half_edge != half_edgeA)) {
+			half_edge.SetCell(cellB);
+			half_edge = half_edge.NextHalfEdgeInCell();
+			k++;
+		}
+		
+		// Set num_vertices in cellA and cellB.
+		cellB.SetNumVertices(k+1);
+		cellA.SetNumVertices(numvA+1-k);
+		
+		// Set cellB.half_edge.
+		cellB.SetHalfEdge(half_edgeB);
+		
+		// Change cellA.half_edge, if necessary.
+		if (cellA.HalfEdge().Cell() != cellA) 
+		{ cellA.SetHalfEdge(half_edgeA); }
+		
+		HalfEdgeDCMTBase hprevA = half_edgeA.PrevHalfEdgeInCell();
+		HalfEdgeDCMTBase hprevB = half_edgeB.PrevHalfEdgeInCell();
+		
+		// Link half edges in cell.
+		_RelinkHalfEdgesInCell(hprevB, diagA);
+		_RelinkHalfEdgesInCell(diagA, half_edgeA);
+		_RelinkHalfEdgesInCell(hprevA, diagB);
+		_RelinkHalfEdgesInCell(diagB, half_edgeB);
+		
+		// Swap first and last edges in half_edge_list[], if necessary.
+		// diagA and diagB are not boundary edges, but diagA.PrevEdgeInCell()
+		// or diagB.PrevEdgeInCell() could be boundary edges.
+		diagA.FromVertex()._ProcessFirstLastHalfEdgesFrom();
+		diagB.FromVertex()._ProcessFirstLastHalfEdgesFrom();
+		
+		return diagA;
+	}
 
-	// *** Methods to check edge collapses. ***
+
+	// *** Methods to check edge/cell collapses/splits. ***
 	
 	/** Return true if edge collapse is illegal.
 	 *  - Edge collapse (vA,vB) is illegal if some cell
@@ -315,12 +390,6 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 				// v2 is a neighbor of v0 and of v1.
 				if (!IsInTriangle(half_edgeA, v2)) {
 					vertex_info.index0 = v2.Index();
-					
-					// *** DEBUG ***
-					/*
-					System.out.println("Found triangle hole with edge " +
-										half_edgeB.EndpointsStr(","));
-										*/
 					return true;
 				}
 			}
@@ -334,17 +403,36 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 				// v2 is a neighbor of v0 and of v1.
 				if (!IsInTriangle(half_edgeA, v2)) {
 					vertex_info.index0 = v2.Index();
-					
-					// *** DEBUG ***
-					/*
-					System.out.println("Found triangle hole (B) with edge " +
-										half_edgeC.EndpointsStr(","));
-					*/
 					return true;
 				}
 			}
 		}
 	
+		return false;
+	}
+	
+	
+	/** Return true if split cell is illegal.
+	 *  - Split cell is illegal
+	 *  	if half_edgeA and half_edgeB are in different cells or
+	 *  	if half_edgeA.FromVertex() and half_EdgeB.FromVertex()
+	 *  		are adjacent vertices.
+	 */
+	public boolean IsIllegalSplitCell
+	(HalfEdgeDCMTBase half_edgeA, HalfEdgeDCMTBase half_edgeB)
+	{
+		if (half_edgeA.Cell() != half_edgeB.Cell())
+			{ return true; }
+		
+		if (half_edgeA == half_edgeB)
+			{ return true; }
+	
+		if (half_edgeA.FromVertex() == half_edgeB.ToVertex())
+			{ return true; }
+		
+		if (half_edgeA.ToVertex() == half_edgeB.FromVertex())
+			{ return true; }
+		
 		return false;
 	}
 	

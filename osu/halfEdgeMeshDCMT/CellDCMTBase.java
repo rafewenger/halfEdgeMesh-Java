@@ -13,7 +13,7 @@ public abstract class CellDCMTBase extends CellBase {
 	
 	
 	// *** Set functions ***
-	// (Needed because osu.halfEdgeMeshDCMT is a different class than osu.halfEdgeMesh.)
+	// (Needed because osu.halfEdgeMeshDCMT is a different package than osu.halfEdgeMesh.)
 	
 	/** Set representative cell half edge. */
 	protected void SetHalfEdge(HalfEdgeDCMTBase half_edge)
@@ -22,6 +22,10 @@ public abstract class CellDCMTBase extends CellBase {
 	/** Decrement number of vertices in cell. */
 	protected void DecrementNumVertices()
 	{ num_vertices--; }
+	
+	/** Set number of vertices. */
+	protected void SetNumVertices(int numv)
+	{ num_vertices = numv; }
 	
 	
 	/** Return minimum and maximum cell edge length and
@@ -67,6 +71,13 @@ public abstract class CellDCMTBase extends CellBase {
 	 *  - Note: cos_min_angle >= cos_max_angle.
 	 *  - The smallest angle is 0 and cos(0) = 1.
 	 *  - The largest angle is pi and cos(pi) = -1.
+	 *  @param[out] min_max_info Sets min_max_info.
+	 *  - min_max_info.minVal is the min cosine.
+	 *  - min_max_info.imin is the index of the half edge 
+	 *  	whose from_vertex has min cosine and MAX angle.
+	 *  - min_max_info.maxVal is the max cosine.
+	 *  - min_max_info.imax is the index of the half edge vertex 
+	 *  	whose from_vertex has max cosine and MIN angle.
 	 */
 	public void ComputeCosMinMaxAngle
 	(MinMaxInfo min_max_info, FlagZero flag_zero)
