@@ -248,8 +248,9 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 	/** Find half edge (v0,v1) or (v1,v0), if it exists.
 	 * - return null if no edge found.
 	 * - Added: 11-30-2021 - RW
+	 * - Modified: 12-05-2021 - RW
 	 */
-	HalfEdgeBase FindEdge(VertexBase v0, VertexBase v1)
+	public HalfEdgeBase FindEdge(VertexBase v0, VertexBase v1)
 	{
 		HalfEdgeBase half_edge =
 				v0.FindIncidentHalfEdge(v1.Index());
@@ -298,9 +299,10 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 		half_edgeB.next_half_edge_around_edge = temp;
 	}
 	
-	/// Add half edge with index ihalf_edge to half_edge_hashtable.
-	/// - Returns new half edge.
-	/// @pre No existing half edge has index ihalf_edge.
+	/** Add half edge with index ihalf_edge to half_edge_hashtable.
+	 * - Returns new half edge.
+	 * @pre No existing half edge has index ihalf_edge.
+	 */
 	protected HALF_EDGE_TYPE _AddHalfEdge(int ihalf_edge)
 	{
 		/// Cast to HALF_EDGE_TYPE. Needed even though factory.NewHalfEdge() 
@@ -309,6 +311,27 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 		half_edge.index = ihalf_edge;
 		half_edge_hashtable.put(ihalf_edge, half_edge);
 		_max_half_edge_index = Math.max(_max_half_edge_index, ihalf_edge);
+		return half_edge;
+	}
+	
+	/** Add half edge with index ihalf_edge and set cell, and from_vertex.
+	 * - Returns new half edge.
+	 * - Add half_edge to from_vertex.half_edge_from.
+	 * - Increment cell.num_vertices.
+	 * @pre No existing half edge has index ihalf_edge.
+	 */
+	protected HALF_EDGE_TYPE 
+		_AddHalfEdge(int ihalf_edge, CellBase cell, VertexBase from_vertex)
+	{
+		HALF_EDGE_TYPE half_edge = _AddHalfEdge(ihalf_edge);
+		half_edge.cell = cell;
+		half_edge.from_vertex = from_vertex;
+		
+		// Add half_edge to from_vertex.half_edge_list.
+		from_vertex.half_edge_from.add(half_edge);
+		
+		cell.num_vertices++;
+		
 		return half_edge;
 	}
 	
