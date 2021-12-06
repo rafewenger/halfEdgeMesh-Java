@@ -43,6 +43,14 @@ public abstract class VertexBase {
 	/** Array of half edges whose from vertex is this. */
 	protected List<HalfEdgeBase> half_edge_from = new ArrayList<HalfEdgeBase>();
 	
+	/** Swap half edges in half_edge_from. */
+	protected void _SwapHalfEdgesInHalfEdgeFromList(int k0, int k1) {
+		HalfEdgeBase temp = KthHalfEdgeFrom(k0);
+		half_edge_from.set(k0, KthHalfEdgeFrom(k1));
+		half_edge_from.set(k1, temp);
+	}
+	
+	
 	/** Move boundary half edge to half_edge_from[0].
 	 *  - If there are no boundary half edges in half_edge_from[],
 	 *    but half_edge_from[k]->PreviousHalfEdgeInCell() is a boundary half edge,
@@ -64,9 +72,7 @@ public abstract class VertexBase {
 			HalfEdgeBase half_edge = KthHalfEdgeFrom(k);
 			if (half_edge.IsBoundary()) {
 				// Swap half_edge_from[0] and half_edge_from[k].
-				HalfEdgeBase temp = KthHalfEdgeFrom(0);
-				half_edge_from.set(0, half_edge);
-				half_edge_from.set(k, temp);
+				_SwapHalfEdgesInHalfEdgeFromList(0,k);
 				return;
 			}
 		}
@@ -85,9 +91,12 @@ public abstract class VertexBase {
 			HalfEdgeBase half_edge = KthHalfEdgeFrom(k);
 			if (half_edge.PrevHalfEdgeInCell().IsBoundary()) {
 				// Swap half_edge_from[0] and half_edge_from[k].
+				_SwapHalfEdgesInHalfEdgeFromList(0,k);
+				/* OBSOLETE
 				HalfEdgeBase temp = KthHalfEdgeFrom(0);
 				half_edge_from.set(0, half_edge);
 				half_edge_from.set(k, temp);
+				*/
 				return;
 			}
 		}
