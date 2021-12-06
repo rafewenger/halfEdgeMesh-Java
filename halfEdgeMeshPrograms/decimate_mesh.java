@@ -42,6 +42,9 @@ public class decimate_mesh {
 	
 	public static void main(String[] argv) {
 		
+		// Number of cells in "large" data sets.
+		int LARGE_DATA_NUM_CELLS = 10000;
+		
 		long begin_time = System.nanoTime();
 		
 		HalfEdgeMeshDCMTA mesh = new HalfEdgeMeshDCMTA();
@@ -56,16 +59,28 @@ public class decimate_mesh {
 		
 		try {
 			
-			long time3 = System.nanoTime();
+			if (!flag_reduce_checks) {
+				flag_reduce_checks = 
+					reduce_checks_on_large_datasets
+						(mesh, flag_no_warn, LARGE_DATA_NUM_CELLS);
+			}
 			
 			if (flag_collapse_edges) {
 				prompt_and_collapse_edges
 					(mesh, flag_terse, flag_no_warn); 
 			}
 			
+			if (flag_split_cells) {
+				prompt_and_split_cells(mesh, flag_terse, flag_no_warn);
+			}
+			
 			if (flag_collapse_short_edges) {
 				collapse_shortest_edge_in_each_cell
 					(mesh, flag_terse, flag_no_warn);
+			}
+			
+			if (flag_split_all_cells) {
+				split_all_cells(mesh, flag_terse, flag_no_warn);
 			}
 			
 			boolean passed_check = check_mesh(mesh, flag_silent && flag_no_warn);
@@ -75,6 +90,8 @@ public class decimate_mesh {
 				{ out.println("Mesh data structure passed check."); }
 			}
 			
+			long time3 = System.nanoTime();
+
 			if (!flag_silent) {
 				out.println();
 				print_mesh_info(mesh);
@@ -206,21 +223,9 @@ public class decimate_mesh {
 		int kount = 0;
 		for (Integer icell:cell_list) {
 			
-			// *** DEBUG ***
-			/*
-			System.out.printf("Collapsing shortest edge in cell %d%n", icell);
-			*/
-			
 			// Note: Some cells may have been deleted.  Cell icell may not exist.
-			if (mesh.Cell(icell) == null) {
-				
-				// *** DEBUG ***
-				/*
-				System.out.printf("Cell %d does not exist.%n", icell);
-				*/
-				
-				continue;
-			}
+			if (mesh.Cell(icell) == null) 
+				{ continue; }
 			
 			collapse_shortest_cell_edge
 				(mesh, icell, flag_terse, flag_no_warn, flag_check);
@@ -235,6 +240,275 @@ public class decimate_mesh {
 
 	}
 	
+	
+	// *** Split cell routines ***
+	
+	protected static HalfEdgeDCMTBase split_cell
+	(HalfEdgeMeshDCMTA mesh, 
+		HalfEdgeDCMTBase half_edgeA, HalfEdgeDCMTBase half_edgeB,
+		boolean flag_terse, boolean flag_no_warn, boolean flag_check)
+				throws Exception
+	{
+		int ihalf_edgeA = half_edgeA.Index();
+		int ihalf_edgeB = half_edgeB.Index();
+		VertexDCMTBase vA = half_edgeA.FromVertex();
+		VertexDCMTBase vB = half_edgeB.FromVertex();
+		int ivA = vA.Index();
+		int ivB = vB.Index();
+		int icell = half_edgeA.CellIndex();
+		
+		boolean flag = 
+			check_split_cell(mesh, half_edgeA, half_edgeB, flag_no_warn);
+		
+		if (mesh.IsIllegalSplitCell(half_edgeA, half_edgeB)) 
+			{ return null; }
+		
+		if (flag || flag_allow_non_manifold) {
+			if (!flag_terse) {
+				out.println("Splitting cell " + String.valueOf(icell) + 
+						" at diagonal (" + String.valueOf(ivA) + "," +
+						String.valueOf(ivB) + ").");
+			}
+		
+			HalfEdgeDCMTBase split_edge = 
+				mesh.SplitCell(ihalf_edgeA, ihalf_edgeB);
+			if (split_edge == null) {
+				out.println("Skipped illegal split of cell " +
+						String.valueOf(icell) + " at diagonal (" +
+						String.valueOf(ivA) + "," 
+						+ String.valueOf(ivB) + ").");
+			}
+			
+			if (flag_check)
+				{ check_mesh(mesh, flag_no_warn); }
+			
+			return split_edge;
+		}
+		else {
+			if (!flag_terse) {
+				out.println("Skipped split of cell " +
+						String.valueOf(icell) + " at diagonal (" +
+						String.valueOf(ivA) + "," 
+						+ String.valueOf(ivB) + ").");
+			}
+			
+			return null;
+		}
+	}
+	
+	/** Get at most max_num cells with more than three vertices. */
+	protected static void get_cells_with_more_than_three_vertices
+		(HalfEdgeMeshDCMTA mesh, int max_num, ArrayList<Integer> cell_list)
+	{
+		int THREE = 3;
+		
+		cell_list.clear();
+		
+		if (max_num < 1)
+			{ return; }
+		
+		for (Integer icell: mesh.CellIndices()) {
+			CellDCMTBase cell = mesh.Cell(icell);
+			if (cell == null)
+				{ continue; }
+			
+			if (cell.NumVertices() > THREE) 
+				{ cell_list.add(icell); }
+			
+			if (cell_list.size() >= max_num) {
+				// Stop getting more cells.
+				return;
+			}
+		}
+	}
+	
+	
+	/** Prompt and split cells. */
+	protected static void prompt_and_split_cells
+		(HalfEdgeMeshDCMTA mesh, boolean flag_terse, boolean flag_no_warn)
+			throws Exception
+	{
+		int THREE = 3;
+		int MAX_NUM = 10;
+		
+		ArrayList<Integer> cell_list = new ArrayList<Integer>();
+		
+		get_cells_with_more_than_three_vertices(mesh, MAX_NUM, cell_list);
+		
+		if (cell_list.size() == 0) {
+			if (!flag_no_warn) {
+				out.println("All cells are triangles.  No cells can be split.");
+			}
+			return;
+		}
+		
+		print_cells_with_more_than_three_vertices(MAX_NUM, cell_list);
+		
+		Scanner scanner = new Scanner(System.in);
+		
+		while (true) {
+			out.printf("Enter cell (-1 to end): ");
+			int icell = scanner.nextInt();
+			
+			if (icell < 0) { return; }
+			
+			if (icell > mesh.MaxCellIndex()) {
+				out.printf("No cell has index %d.");
+				out.printf("  Maximum cell index: %d.\n", 
+						mesh.MaxCellIndex());
+			}
+			
+			CellDCMTBase cell = mesh.Cell(icell);
+			if (cell == null) {
+				out.printf("No cell has index %d.\n", icell);
+				out.println();
+				continue;
+			}
+			
+			if (cell.NumVertices() <= THREE) {
+				out.printf("Cell %d has fewer than four vertices and cannot be split.\n",
+							icell);
+				out.println();
+				continue;
+			}
+			
+			HalfEdgeDCMTBase half_edge = cell.HalfEdge();
+			out.printf("Vertices in cell %d:", icell);
+			for (int k = 0; k < cell.NumVertices(); k++) {
+				out.printf("  %d", half_edge.FromVertexIndex());
+				half_edge = half_edge.NextHalfEdgeInCell();
+			}
+			out.println();
+			
+			out.printf("Enter two distinct vertex indices (-1 to end): ");
+			int ivA = scanner.nextInt();
+			if (ivA < 0) { return; }
+			
+			int ivB = scanner.nextInt();
+			if (ivB < 0) { return; }
+			
+			if (ivA == ivB) {
+				out.println();
+				out.println("Vertices are not distinct. Start again.");
+				out.println();
+				continue;
+			}
+			
+			HalfEdgeDCMTBase half_edgeA = null;
+			HalfEdgeDCMTBase half_edgeB = null;
+			for (int k = 0; k < cell.NumVertices(); k++) {
+				if (half_edge.FromVertexIndex() == ivA)
+					{ half_edgeA = half_edge; }
+				if (half_edge.FromVertexIndex() == ivB)
+					{ half_edgeB = half_edge; }
+				
+				half_edge = half_edge.NextHalfEdgeInCell();
+			}
+		
+			if ((half_edgeA == null) || (half_edgeB == null)) {
+				out.println();
+				out.printf("Vertices are not in cell %d.\n", icell);
+				out.println("Start again.");
+				out.println();
+				continue;
+			}
+			
+			if ((half_edgeA.ToVertexIndex() == ivB) ||
+					(half_edgeB.ToVertexIndex() == ivA)) {
+				out.println();
+				out.printf("(%d,%d) is a cell edge, not a cell diagonal.\n",
+							ivA, ivB);
+				out.printf("  Vertices must not be adjacent.\n");
+				out.println("Start again.");
+				out.println();
+				continue;
+			}
+			
+			split_cell(mesh, half_edgeA, half_edgeB, 
+						flag_terse, flag_no_warn, true);
+		}
+	}
+	
+	
+	/** Split cell at largest angle.
+	 *  - Split cell at vertex forming the largest angle.
+	 *  - Split as many times as necessary to triangulate.
+	 */
+	protected static void
+		split_cell_at_largest_angle
+			(HalfEdgeMeshDCMTA mesh, CellDCMTBase cell,
+			boolean flag_terse, boolean flag_no_warn, boolean flag_check)
+				throws Exception
+	{
+		MinMaxInfo min_max_info = new MinMaxInfo();
+		FlagZero flag_zero = new FlagZero();
+		
+		cell.ComputeCosMinMaxAngle(min_max_info, flag_zero);
+		// min_max_info.imin is the index of the half edge
+		//   whose from_vertex has min cosine and MAX angle.
+		int ihalf_edge_min = min_max_info.imin;
+		HalfEdgeDCMTBase half_edgeA = mesh.HalfEdge(ihalf_edge_min);
+		
+		while (!half_edgeA.Cell().IsTriangle()) {
+			HalfEdgeDCMTBase half_edgeB = half_edgeA.PrevHalfEdgeInCell().PrevHalfEdgeInCell();
+			VertexDCMTBase vA = half_edgeA.FromVertex();
+			
+			HalfEdgeDCMTBase split_edge = 
+				split_cell(mesh, half_edgeA, half_edgeB, 
+							flag_terse, flag_no_warn, flag_check);
+			
+			if (split_edge == null) {
+				// Cannot split cell at largest angle.
+				return;
+			}
+			
+			if (flag_check) 
+				{ check_mesh(mesh, flag_no_warn); }
+			
+			// Get largest angle in remaining cell.
+			CellDCMTBase cellA = split_edge.Cell();
+			// min_max_info.imin is the index of the half edge
+			//   whose from_vertex has min cosine and MAX angle.
+			cell.ComputeCosMinMaxAngle(min_max_info, flag_zero);
+			ihalf_edge_min = min_max_info.imin;
+			half_edgeA = mesh.HalfEdge(ihalf_edge_min);
+		}
+	}
+	
+	
+	/** Split all cells. */
+	protected static void split_all_cells
+		(HalfEdgeMeshDCMTA mesh, boolean flag_terse, boolean flag_no_warn)
+			throws Exception
+	{
+		int n = mesh.MaxCellIndex();
+		boolean flag_check = !flag_reduce_checks;
+		
+		// Create a list of the cell indices.
+		ArrayList<Integer> cell_list = new ArrayList<Integer>();
+		cell_list.addAll(mesh.CellIndices());
+		
+		// Sort so that cells are processed in sorted order.
+		Collections.sort(cell_list);
+		
+		int kount = 0;
+		for (Integer icell:cell_list) {
+			
+			CellDCMTBase cell = mesh.Cell(icell);
+			// Note: Some cells may have been deleted.  Cell icell may not exist.
+			if (cell == null) { continue; }
+			
+			split_cell_at_largest_angle
+				(mesh, cell, flag_terse, flag_no_warn, flag_check);
+			kount++;
+		
+			if (flag_reduce_checks) {
+				// Check mesh halfway through.
+				if (kount == n/2) 
+					{ check_mesh(mesh, flag_no_warn); }
+			}
+		}
+	}
 	
 	// *** Check routines ***
 	
@@ -408,8 +682,82 @@ public class decimate_mesh {
 	}
 	
 	
-	// *** SUBROUTINES ****
+	/** Print a warning message if splitting cell at diagonal
+	 *    (half_edgeA.FromVertex(), half_edgeB.FromVertex())
+	 *    will change the mesh topology.
+	 *  - Return true if split does not change the mesh topology.
+	 */
+	protected static boolean check_split_cell
+		(HalfEdgeMeshDCMTBase mesh, HalfEdgeDCMTBase half_edgeA, 
+			HalfEdgeDCMTBase half_edgeB, boolean flag_no_warn)
+	{
+		VertexDCMTBase vA = half_edgeA.FromVertex();
+		VertexDCMTBase vB = half_edgeB.FromVertex();
+		int ivA = vA.Index();
+		int ivB = vB.Index();
+		int icell = half_edgeA.CellIndex();
+		HalfEdgeBase half_edgeC = mesh.FindEdge(vA, vB);
+		
+		boolean flag_cell_edge = false;
+		boolean return_flag = true;
+		
+		if (mesh.IsIllegalSplitCell(half_edgeA, half_edgeB)) {
+			
+			if ((vA == half_edgeB.ToVertex()) ||
+				(vB == half_edgeA.FromVertex()))
+				{ flag_cell_edge = true; }
+				
+			if (!flag_no_warn) {
+				if (flag_cell_edge) {
+					out.printf("(%d,%d) is a cell edge, not a cell diagonal.\n",
+								ivA, ivB);
+				}
+				else {
+					out.printf("Illegal split of cell %d with diagonal (%d,%d).\n",
+								icell, ivA, ivB);
+				}
+			}
+			
+			return_flag = false;
+		}
+		
+		if ((half_edgeC != null) && !flag_cell_edge) {
+		
+			if (!flag_no_warn) {
+				out.printf("Splitting cell %d with diagonal (%d,%d)",
+							icell, ivA, ivB);
+				out.printf("  creates an edge incident on three or more cells.\n");
+			}
+			
+			return_flag = false;
+		}
+		
+		return return_flag;
+	}
 	
+	
+	
+	protected static boolean reduce_checks_on_large_datasets
+		(HalfEdgeMeshBase mesh, boolean flag_no_warn, int large_data_num_cells)
+	{
+		int num_cells = mesh.NumCells();
+		if (num_cells >= large_data_num_cells) {
+			if (!flag_no_warn) {
+				out.printf("Warning: Large data set with %d cells.\n", num_cells);
+				out.println("  Reducing checks (using -flag_reduce_checks).");
+			}
+			
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+	
+	
+	// *** Parse/print/prompt functions ****
+	
+	/** Parse command line. */
 	protected static void parse_command_line(String[] argv)
 	{
 		int iarg = 0;
@@ -421,6 +769,10 @@ public class decimate_mesh {
 			{ flag_collapse_edges = true; }
 			else if (s.equals("-collapse_short_edges"))
 			{ flag_collapse_short_edges = true; }
+			else if (s.equals("-split_cells"))
+			{ flag_split_cells = true; }
+			else if (s.equals("-split_all_cells"))
+			{ flag_split_all_cells = true; }
 			else if (s.equals("-allow_non_manifold"))
 			{ flag_allow_non_manifold = true; }
 			else if (s.equals("-fail_on_non_manifold"))
@@ -534,6 +886,22 @@ public class decimate_mesh {
 		}
 	}
 	
+	/** Print cells with more than three vertices.*/
+	protected static void 
+		print_cells_with_more_than_three_vertices
+			(int max_num, ArrayList<Integer> cell_list)
+	{
+		out.printf("Cells with more than three vertices");
+		if (cell_list.size() >= max_num) {
+			out.printf("  (partial list)");
+		}
+		out.printf(":");
+		for (int i = 0; i < cell_list.size(); i++) 
+			{  out.printf("  %d", cell_list.get(i)); }
+		out.printf("\n");
+	}
+	
+	
 	
 	/** Print mesh information (number of vertices, edges, etc. and
 	 *    minimum and maximum edge length, cell angle, etc.)
@@ -602,6 +970,7 @@ public class decimate_mesh {
 		out.println("Usage: decimate_mesh [OPTIONS] <input filename> [<output_filename>]");
 		out.println("OPTIONS:");
 		out.println("  [-collapse_edge] [-collapse_short_edges]");
+		out.println("  [-split_cells] [-split_all_cells]");
 		out.println("  [-allow_non_manifold] [-fail_on_non_manifold]");
 		out.println("  [-s | -terse] [-no_warn] [-time] [-h]");
 	}
@@ -623,7 +992,9 @@ public class decimate_mesh {
 		out.println();
 		out.println("Options:");
 		out.println("-collapse_edges:  Prompt and collapse edges.");
-		out.println("-collapse_short_edges: Attemp to collapse shortest edge in each cell.");
+		out.println("-collapse_short_edges: Attempt to collapse shortest edge in each cell.");
+		out.println("-split_cells:     Prompt and split cells across diagonals.");
+		out.println("-split_all_cells: Attempt to split all cells.");
 		out.println("-allow_non_manifold: Allow edge collapses or cell splits");
 		out.println("     that create non-manifold conditions.");
 		out.println("-fail_on_non_manifold:  Exit with non-zero return code (fail)");
