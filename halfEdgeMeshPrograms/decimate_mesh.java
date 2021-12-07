@@ -65,6 +65,10 @@ public class decimate_mesh {
 						(mesh, flag_no_warn, LARGE_DATA_NUM_CELLS);
 			}
 			
+			if (flag_split_edges) {
+				prompt_and_split_edges(mesh, flag_terse, flag_no_warn);
+			}
+			
 			if (flag_collapse_edges) {
 				prompt_and_collapse_edges
 					(mesh, flag_terse, flag_no_warn); 
@@ -76,6 +80,11 @@ public class decimate_mesh {
 			
 			if (flag_collapse_short_edges) {
 				collapse_shortest_edge_in_each_cell
+					(mesh, flag_terse, flag_no_warn);
+			}
+			
+			if (flag_split_long_edges) {
+				split_longest_edge_in_each_cell
 					(mesh, flag_terse, flag_no_warn);
 			}
 			
@@ -211,7 +220,6 @@ public class decimate_mesh {
 	{
 		int n = mesh.NumCells();
 		
-		// SHOULD CALL reduce_checks_on_large_datasets;
 		boolean flag_check = !flag_reduce_checks;
 		
 		ArrayList<Integer> cell_list = new ArrayList<Integer>();
@@ -510,6 +518,105 @@ public class decimate_mesh {
 		}
 	}
 	
+	
+	// *** Split edges routines. ***
+	
+	/** Split edge. */
+	protected static void split_edge
+		(HalfEdgeMeshDCMTA mesh, HalfEdgeDCMTBase half_edge, 
+		boolean flag_terse, boolean flag_no_warn, boolean flag_check)
+			throws Exception
+	{
+		if (!flag_terse) {
+			out.println("Splitting edge (" + half_edge.EndpointsStr(",") + ").");
+		}
+		
+		VertexDCMTBase v = mesh.SplitEdge(half_edge.Index());
+		if (v == null) {
+			out.println("Splittin of edge (" + 
+				half_edge.EndpointsStr(",") + ") failed.");
+		}
+		
+		if (flag_check)
+			{ check_mesh(mesh, flag_no_warn); }
+	}
+	
+	
+	/** Prompt and split edges. */
+	protected static void prompt_and_split_edges
+		(HalfEdgeMeshDCMTA mesh, boolean flag_terse, boolean flag_no_warn)
+			throws Exception
+	{
+		Scanner scanner = new Scanner(System.in);
+
+		while (true) {
+			HalfEdgeDCMTBase half_edge0 = 
+				prompt_for_mesh_edge(scanner, mesh, false);
+			
+			if (half_edge0 == null) {
+				// End.
+				out.println();
+				return;
+			}
+			
+			split_edge(mesh, half_edge0, flag_terse, flag_no_warn, true);
+			
+			out.println();
+		}
+	}
+	
+	
+	/** Split longest cell edge. */
+	protected static void split_longest_cell_edge
+		(HalfEdgeMeshDCMTA mesh, CellDCMTBase cell,
+			boolean flag_terse, boolean flag_no_warn, boolean flag_check)
+				throws Exception
+	{	
+		MinMaxInfo min_max_info = new MinMaxInfo();
+		cell.ComputeMinMaxEdgeLengthSquared(min_max_info);
+		
+		int ihalf_edge_max = min_max_info.imax;
+		HalfEdgeDCMTBase half_edge_max = mesh.HalfEdge(ihalf_edge_max);
+		
+		split_edge(mesh, half_edge_max, flag_terse, flag_no_warn, flag_check);		
+	}
+
+	
+	/** Split longest edge in each cell. */
+	protected static void split_longest_edge_in_each_cell
+		(HalfEdgeMeshDCMTA mesh, boolean flag_terse, boolean flag_no_warn)
+			throws Exception
+	{
+		int n = mesh.NumCells();
+		boolean flag_check = !flag_reduce_checks;
+		
+		// Create a list of the cell indices.
+		ArrayList<Integer> cell_list = new ArrayList<Integer>();
+		cell_list.addAll(mesh.CellIndices());
+		
+		// Sort so that cells are processed in sorted order.
+		Collections.sort(cell_list);
+		
+		int kount = 0;
+		for (Integer icell:cell_list) {
+			
+			CellDCMTBase cell = mesh.Cell(icell);
+			// Note: Some cells may have been deleted.  Cell icell may not exist.
+			if (cell == null) { continue; }
+			
+			split_longest_cell_edge
+				(mesh, cell, flag_terse, flag_no_warn, flag_check);
+			kount++;
+		
+			if (flag_reduce_checks) {
+				// Check mesh halfway through.
+				if (kount == n/2) 
+					{ check_mesh(mesh, flag_no_warn); }
+			}
+		}	 
+	}
+	
+	
 	// *** Check routines ***
 	
 	/** Return true if mesh passed mesh check, manifold check,
@@ -773,6 +880,14 @@ public class decimate_mesh {
 			{ flag_split_cells = true; }
 			else if (s.equals("-split_all_cells"))
 			{ flag_split_all_cells = true; }
+			else if (s.equals("-split_edges"))
+			{ flag_split_edges = true; }
+			else if (s.equals("-split_long_edges"))
+			{ flag_split_long_edges = true; }
+			else if (s.equals("-split_long_edges_cells")) {
+				flag_split_long_edges = true;
+				flag_split_all_cells = true;
+			}
 			else if (s.equals("-allow_non_manifold"))
 			{ flag_allow_non_manifold = true; }
 			else if (s.equals("-fail_on_non_manifold"))
@@ -869,11 +984,18 @@ public class decimate_mesh {
 			error_info = mesh.CheckVertexIndex(iv1);
 			if (error_info.FlagError()) {
 				out.println(error_info.Message());
+				out.println();
 				continue;
 			}
 			
 			HalfEdgeDCMTBase half_edge0 = 
 				v0.FindIncidentHalfEdge(iv1);
+			if (half_edge0 == null) {
+				out.printf("Mesh does not have a half edge (%d,%d).\n",
+							iv0, iv1);
+				out.println();
+				continue;
+			}
 			
 			if (flag_only_internal && half_edge0.IsBoundary()) {
 				out.println("Half edge (" + half_edge0.EndpointsStr(",") +
@@ -971,6 +1093,7 @@ public class decimate_mesh {
 		out.println("OPTIONS:");
 		out.println("  [-collapse_edge] [-collapse_short_edges]");
 		out.println("  [-split_cells] [-split_all_cells]");
+		out.println("  [-split_edges] [-split_long_edges]");
 		out.println("  [-allow_non_manifold] [-fail_on_non_manifold]");
 		out.println("  [-s | -terse] [-no_warn] [-time] [-h]");
 	}
@@ -991,13 +1114,15 @@ public class decimate_mesh {
 		out.println("  (Split/join not yet implemented.)");
 		out.println();
 		out.println("Options:");
-		out.println("-collapse_edges:  Prompt and collapse edges.");
+		out.println("-collapse_edges:   Prompt and collapse edges.");
 		out.println("-collapse_short_edges: Attempt to collapse shortest edge in each cell.");
-		out.println("-split_cells:     Prompt and split cells across diagonals.");
-		out.println("-split_all_cells: Attempt to split all cells.");
-		out.println("-allow_non_manifold: Allow edge collapses or cell splits");
+		out.println("-split_edges:      Prompt and split edges.");
+		out.println("-split_long_edges: Split longest edge in each cell.");
+		out.println("-split_cells:      Prompt and split cells across diagonals.");
+		out.println("-split_all_cells:  Attempt to split all cells.");
+		out.println("-allow_non_manifold:   Allow edge collapses or cell splits");
 		out.println("     that create non-manifold conditions.");
-		out.println("-fail_on_non_manifold:  Exit with non-zero return code (fail)");
+		out.println("-fail_on_non_manifold: Exit with non-zero return code (fail)");
 		out.println("     if non-manifold or inconsistent orientations detected.");
 		out.println("-terse:   Terse output. Suppress messages output after each");
 		out.println("     collapse/join/split iteration.");
