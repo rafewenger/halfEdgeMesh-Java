@@ -54,14 +54,6 @@ public abstract class VertexDCMTBase extends VertexBase {
 			// Set half_edgeB.FromVertex().visited_flag in case of
 			//   boundary edges or cells with arbitrary orientations.
 			half_edgeB.FromVertex().visited_flag = flag;
-			
-			// *** DEBUG ***
-			/*
-			System.out.printf("Marked vertices %d and %d visited_flag = %b.%n",
-							half_edgeA.ToVertexIndex(),
-							half_edgeB.FromVertexIndex(),
-							flag);
-							*/
 		}
 	}
 	

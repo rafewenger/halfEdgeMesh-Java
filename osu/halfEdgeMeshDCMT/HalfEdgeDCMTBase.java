@@ -51,10 +51,15 @@ public class HalfEdgeDCMTBase extends HalfEdgeBase {
 	/** Set cell.
 	 *  - HalfEdgeMeshDCMTBase does not have access to HalfEdgeBase cell.
 	 */
-	protected void SetCell(CellDCMTBase cell)
+	protected void _SetCell(CellDCMTBase cell)
 	{ this.cell = cell; }
 	
 
+	/** Set half_edge_around_edge. */
+	protected void _SetHalfEdgeAroundEdge(HalfEdgeDCMTBase half_edge)
+	{ this.next_half_edge_around_edge = half_edge; }
+	
+	
 	// *** Functions to compute mesh information ***
 	
 	/** Compute length squared of the half edge */

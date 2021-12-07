@@ -2,6 +2,7 @@ package osu.halfEdgeMeshDCMT;
 
 import osu.halfEdgeMesh.*;
 
+
 /** Half edge mesh supporting decimation operations. */
 
 public abstract class HalfEdgeMeshDCMTBase
@@ -50,6 +51,130 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 		}
 	}
 
+	
+	// *** Internal split functions. ***
+	
+	/** Split internal edge. */
+	protected VERTEX_TYPE _SplitInternalEdge(HalfEdgeDCMTBase half_edgeA)
+		throws Exception
+	{
+		if (half_edgeA == null) {
+			throw new Exception("Programming error. Argument to _SplitInternalEdge is null.");
+		}
+		
+		HalfEdgeDCMTBase half_edgeB = half_edgeA.NextHalfEdgeAroundEdge();
+		if (half_edgeB.NextHalfEdgeAroundEdge() != half_edgeA) {
+			throw new Exception
+				("Programming error. Half edge passed to _SplitInternalEdge is in an edge shared by three or more cells.");
+		}
+		
+		if (half_edgeB == half_edgeA) {
+			throw new Exception
+				("Programming error. Half edge passed to _SplitInternalEdge is a boundary edge. Call _SplitBoundaryEdge().");
+		}
+		
+		VertexDCMTBase vA = half_edgeA.FromVertex();
+		VertexDCMTBase vB = half_edgeB.FromVertex();
+		CellDCMTBase cellA = half_edgeA.Cell();
+		CellDCMTBase cellB = half_edgeB.Cell();
+		HalfEdgeDCMTBase nextA = half_edgeA.NextHalfEdgeInCell();
+		HalfEdgeDCMTBase nextB = half_edgeB.NextHalfEdgeInCell();
+	
+		// Create a new vertex.
+		int ivnew = MaxVertexIndex()+1;
+		VERTEX_TYPE newv = AddVertex(ivnew);
+		
+		if (newv == null) {
+			throw new Exception("Error creating new vertex. Out of memory?");
+		}
+		
+		// Set newv to midpoint of (vA,vB).
+		ComputeCoord.compute_midpoint(vA.coord, vB.coord, newv.coord);
+		
+		// Create two new half edges.
+		int inew_half_edgeA = MaxHalfEdgeIndex()+1;
+		
+		// _AddHalfEdge() increments cellA.num_vertices.
+		HALF_EDGE_TYPE new_half_edgeA = _AddHalfEdge(inew_half_edgeA, cellA, newv);
+		
+		int inew_half_edgeB = MaxHalfEdgeIndex()+1;
+		
+		// _AddHalfEdge() increments cellB.num_vertices.
+		HALF_EDGE_TYPE new_half_edgeB = _AddHalfEdge(inew_half_edgeB, cellB, newv);
+		
+		// Relink half edges in cell.
+		_RelinkHalfEdgesInCell(half_edgeA, new_half_edgeA);
+		_RelinkHalfEdgesInCell(half_edgeB, new_half_edgeB);
+		_RelinkHalfEdgesInCell(new_half_edgeA, nextA);
+		_RelinkHalfEdgesInCell(new_half_edgeB, nextB);
+		
+		// Unlink half_edgeA.next_half_around_edge and
+		//   half_edgeB.next_half_edge_around_edge.
+		half_edgeA._SetHalfEdgeAroundEdge(half_edgeA);
+		half_edgeB._SetHalfEdgeAroundEdge(half_edgeB);
+
+		// Lin half edges around edge.
+		_LinkHalfEdgesAroundEdge(half_edgeA, new_half_edgeB);
+		_LinkHalfEdgesAroundEdge(half_edgeB, new_half_edgeA);
+		
+		// half_edgeA and half_edgeB are not boundary edges,
+		//   but the previous edges in the cell might be boundary edges.
+		vA._MoveBoundaryHalfEdgeToHalfEdgeFrom0();
+		vB._MoveBoundaryHalfEdgeToHalfEdgeFrom0();
+		
+		return newv;
+	}
+	
+	
+	/** Split a boundary edge.
+	 *  - Returns new vertex.
+	 *  @pre half_edgeA is a boundary edge.
+	 */
+	protected VERTEX_TYPE _SplitBoundaryEdge
+		(HalfEdgeDCMTBase half_edgeA)
+				throws Exception
+	{
+		if (half_edgeA == null) {
+				throw new Exception("Programming error. Argument to _SplitInternalEdge is null.");
+		}
+			
+		if (!half_edgeA.IsBoundary()) {
+			throw new Exception
+				("Programming error. Half edge passed to _SplitBoundaryEdge is an internal edge. Call _SplitInternalEdge().");
+		}
+		
+		VertexDCMTBase vA = half_edgeA.FromVertex();
+		VertexDCMTBase vB = half_edgeA.ToVertex();
+		CellDCMTBase cellA = half_edgeA.Cell();
+		HalfEdgeDCMTBase nextA = half_edgeA.NextHalfEdgeInCell();
+		
+		// Create a new vertex.
+		int ivnew = MaxVertexIndex() + 1;
+		VERTEX_TYPE newv = AddVertex(ivnew);
+		
+		if (newv == null) {
+			throw new Exception("Error creating new vertex. Out of memory?");
+		}
+		
+		// Set newv to midpoint of (vA,vB).
+		ComputeCoord.compute_midpoint(vA.coord, vB.coord, newv.coord);
+		
+		// Create a new half edge.
+		int inew_half_edgeA = MaxHalfEdgeIndex()+1;
+		
+		// _AddHalfEdge() increments cellA.num_vertices.
+		HALF_EDGE_TYPE new_half_edgeA = 
+			_AddHalfEdge(inew_half_edgeA, cellA, newv);
+		
+		// Relink half edges in cell.
+		_RelinkHalfEdgesInCell(half_edgeA, new_half_edgeA);
+		_RelinkHalfEdgesInCell(new_half_edgeA, nextA);
+		
+		// NO need to move edges in half_edge_from[] lists.
+
+		return newv;
+	}
+	
 	
 	// *** Collapse/Split/Join methods ***
 	
@@ -179,7 +304,7 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 		HalfEdgeDCMTBase half_edge = half_edgeB;
 		int k = 0;
 		while ((k < numvA) && (half_edge != half_edgeA)) {
-			half_edge.SetCell(cellB);
+			half_edge._SetCell(cellB);
 			half_edge = half_edge.NextHalfEdgeInCell();
 			k++;
 		}
@@ -213,6 +338,26 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 		return diagA;
 	}
 
+	
+	/** Split edge at midpoint.
+	 *  - Returns new vertex.
+	 */
+	public VERTEX_TYPE SplitEdge(int ihalf_edgeA)
+		throws Exception
+	{
+		HalfEdgeDCMTBase half_edgeA = HalfEdge(ihalf_edgeA);
+		if (half_edgeA == null) {
+			throw new Exception("Programming error. Argument to SplitEdge is not a half edge index.");
+		}
+		
+		if (half_edgeA.IsBoundary()) {
+			return _SplitBoundaryEdge(half_edgeA);
+		}
+		else {
+			return _SplitInternalEdge(half_edgeA);
+		}
+	}
+	
 
 	// *** Methods to check edge/cell collapses/splits. ***
 	
