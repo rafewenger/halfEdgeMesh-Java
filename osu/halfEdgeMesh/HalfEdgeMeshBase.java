@@ -450,6 +450,23 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 	
 	// *** Public AddVertices(), AddCell() functions ***
 
+	/** Add vertex with index iv.
+	 *  - Returns vertex.
+	 *  @param iv Vertex index.  Should not already be in VertexIndices().
+	 */
+	public VERTEX_TYPE AddVertex(int iv)
+		throws Exception
+	{
+		if (VertexIndices().contains(iv)) {
+			throw new Exception
+				("Illegal argument to AddVertex().  Vertex " + 
+					String.valueOf(iv) + " aready exists.");
+		}
+		
+		return _CreateVertex(iv);
+	}
+	
+	
 	/** Add vertices [0..(numv-1)] to the mesh. */
 	public void AddVertices(int numv) throws Exception
 	{
