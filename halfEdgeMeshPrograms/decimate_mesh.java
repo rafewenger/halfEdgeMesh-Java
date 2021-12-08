@@ -78,6 +78,10 @@ public class decimate_mesh {
 				prompt_and_split_cells(mesh, flag_terse, flag_no_warn);
 			}
 			
+			if (flag_join_cells) {
+				prompt_and_join_cells(mesh, flag_terse, flag_no_warn);
+			}
+			
 			if (flag_collapse_short_edges) {
 				collapse_shortest_edge_in_each_cell
 					(mesh, flag_terse, flag_no_warn);
@@ -90,6 +94,10 @@ public class decimate_mesh {
 			
 			if (flag_split_all_cells) {
 				split_all_cells(mesh, flag_terse, flag_no_warn);
+			}
+			
+			if (flag_join_each_cell) {
+				join_each_cell(mesh, flag_terse, flag_no_warn);
 			}
 			
 			boolean passed_check = check_mesh(mesh, flag_silent && flag_no_warn);
@@ -519,6 +527,126 @@ public class decimate_mesh {
 	}
 	
 	
+	// *** Join cell routines. ***
+	
+	/** Join two cells by deleting half edge. */
+	protected static void join_two_cells
+		(HalfEdgeMeshDCMTA mesh, HalfEdgeDCMTBase half_edge,
+		boolean flag_terse, boolean flag_no_warn, boolean flag_check)
+			throws Exception
+	{
+		int icell = half_edge.CellIndex();
+		int icellX = half_edge.NextCellAroundEdge().Index();
+		
+		boolean flag = check_join_cell(mesh, half_edge, flag_no_warn);
+		
+		if (mesh.IsIllegalJoinCells(half_edge)) { return; }
+		
+		if (flag) {
+			if (!flag_terse) {
+				out.printf
+					("Joining cell %d to cell %d by deleting edge (%s).\n",
+						icell, icellX, half_edge.EndpointsStr(","));
+			}
+			
+			HalfEdgeDCMTBase half_edgeB = 
+				mesh.JoinTwoCells(half_edge.Index());
+			
+			if (half_edgeB == null) {
+				out.printf("Join of cell %d to cell %d failed.\n", 
+							icell, icellX);
+			}
+			else {
+				if (flag_check)
+					{ check_mesh(mesh, flag_no_warn); }
+			}
+			
+			return;
+		}
+		else {
+			if (!flag_no_warn) {
+				out.printf("Skipping join of cell %d to cell %d.\n",
+							icell, icellX);
+			}
+		}
+	}
+	
+	
+	/** Prompt and join cells. */
+	protected static void prompt_and_join_cells
+		(HalfEdgeMeshDCMTA mesh, boolean flag_terse, boolean flag_no_warn)
+			throws Exception
+	{
+		Scanner scanner = new Scanner(System.in);
+
+		while (true) {
+			HalfEdgeDCMTBase half_edge0 = 
+				prompt_for_mesh_edge(scanner, mesh, true);
+			
+			if (half_edge0 == null) {
+				// End.
+				out.println();
+				return;
+			}
+			
+			join_two_cells
+				(mesh, half_edge0, flag_terse, flag_no_warn, true);
+			
+			out.println();
+		}
+	}
+	
+	
+	/** Attempt to join each cell by deleting longest edge. */
+	protected static void join_each_cell
+		(HalfEdgeMeshDCMTA mesh, boolean flag_terse, boolean flag_no_warn)
+			throws Exception
+	{
+		// Don't join cells with MAX_NUMV or more vertices.
+		int MAX_NUMV = 6;
+		int n = mesh.NumCells();
+		boolean flag_check = !flag_reduce_checks;
+		MinMaxInfo min_max_info = new MinMaxInfo();
+		
+		// Create a list of the cell indices.
+		ArrayList<Integer> cell_list = new ArrayList<Integer>();
+		cell_list.addAll(mesh.CellIndices());
+		
+		// Sort so that cells are processed in sorted order.
+		Collections.sort(cell_list);
+		
+		int kount = 0;
+		for (Integer icell:cell_list) {
+			
+			CellDCMTBase cell = mesh.Cell(icell);
+			// Note: Some cells may have been deleted.  Cell icell may not exist.
+			if (cell == null) { continue; }
+		
+			if (cell.NumVertices() >= MAX_NUMV) {
+				// Don't let the cell get too large.
+				continue;
+			}
+			
+			cell.ComputeMinMaxEdgeLengthSquared(min_max_info);
+			HalfEdgeDCMTBase half_edge_max = mesh.HalfEdge(min_max_info.imax);
+			if (half_edge_max.NextCellAroundEdge().NumVertices() >= MAX_NUMV) {
+				// Don't let cell get too large.
+				continue;
+			}
+			
+			join_two_cells
+				(mesh, half_edge_max, flag_terse, flag_no_warn, flag_check);
+			kount++;
+		
+			if (flag_reduce_checks) {
+				// Check mesh halfway through.
+				if (kount == n/2) 
+					{ check_mesh(mesh, flag_no_warn); }
+			}
+		}
+	}
+	
+	
 	// *** Split edges routines. ***
 	
 	/** Split edge. */
@@ -795,7 +923,7 @@ public class decimate_mesh {
 	 *  - Return true if split does not change the mesh topology.
 	 */
 	protected static boolean check_split_cell
-		(HalfEdgeMeshDCMTBase mesh, HalfEdgeDCMTBase half_edgeA, 
+		(HalfEdgeMeshDCMTA mesh, HalfEdgeDCMTBase half_edgeA, 
 			HalfEdgeDCMTBase half_edgeB, boolean flag_no_warn)
 	{
 		VertexDCMTBase vA = half_edgeA.FromVertex();
@@ -843,9 +971,63 @@ public class decimate_mesh {
 	}
 	
 	
+	/** Print a warning if joining cells separated by half_edge is illegal.
+	 * <ul> <li> Return true if join is legal. </ul>
+	 */
+	protected static boolean check_join_cell
+		(HalfEdgeMeshDCMTA mesh, HalfEdgeDCMTBase half_edge, 
+			boolean flag_no_warn)
+	{
+		int TWO = 2;
+		boolean return_flag = true;
+		
+		if (mesh.IsIllegalJoinCells(half_edge)) {
+			HalfEdgeDCMTBase half_edgeX = 
+				half_edge.NextHalfEdgeAroundEdge();
+
+			if (!flag_no_warn) {
+				if (half_edge.IsBoundary()) {
+					out.printf("Only one cell contains edge(%s).\n",
+								half_edge.EndpointsStr(","));
+				}
+				else if (!half_edge.FromVertex().IsIncidentOnMoreThanTwoEdges()) {
+					out.printf("Half edge endpoint %d is incident on only two edges.\n",
+								half_edge.FromVertexIndex());
+				}
+				else if (!half_edge.ToVertex().IsIncidentOnMoreThanTwoEdges()) {
+					out.printf("Half edge endpoint %d is incident on only two edges.\n",
+								half_edge.ToVertexIndex());
+				}
+				else if (half_edge != half_edgeX.NextHalfEdgeAroundEdge()) {
+					out.printf("More than two cells are incident on edge (%s).\n",
+								half_edge.EndpointsStr(","));
+				}
+				else {
+					CellDCMTBase cell = half_edge.Cell();
+					CellDCMTBase cellX = half_edgeX.Cell();
+					int num_shared_vertices = 
+						mesh.CountNumVerticesSharedByTwoCells(cell, cellX);
+					if (num_shared_vertices > TWO) {
+						out.printf("Cells %d and %d share %d vertices.\n",
+									cell.Index(), cellX.Index(), 
+									num_shared_vertices);
+					}
+					else {
+						out.printf
+							("Join of two cells incident on edge (%s) is illegal.\n",
+									half_edge.EndpointsStr(","));
+					}
+				}
+			}
+			
+			return_flag = false;
+		}
+		
+		return return_flag;
+	}
 	
 	protected static boolean reduce_checks_on_large_datasets
-		(HalfEdgeMeshBase mesh, boolean flag_no_warn, int large_data_num_cells)
+		(HalfEdgeMeshDCMTA mesh, boolean flag_no_warn, int large_data_num_cells)
 	{
 		int num_cells = mesh.NumCells();
 		if (num_cells >= large_data_num_cells) {
@@ -880,6 +1062,10 @@ public class decimate_mesh {
 			{ flag_split_cells = true; }
 			else if (s.equals("-split_all_cells"))
 			{ flag_split_all_cells = true; }
+			else if (s.equals("-join_cells"))
+			{ flag_join_cells = true; }
+			else if (s.equals("-join_each_cell"))
+			{ flag_join_each_cell = true; }
 			else if (s.equals("-split_edges"))
 			{ flag_split_edges = true; }
 			else if (s.equals("-split_long_edges"))

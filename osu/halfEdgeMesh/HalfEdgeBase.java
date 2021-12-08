@@ -81,6 +81,15 @@ public abstract class HalfEdgeBase {
 	public HalfEdgeBase NextHalfEdgeAroundEdge()
 	{ return next_half_edge_around_edge; }
 	
+	/** Return next cell around edge.
+	 * <ul>
+	 * <li> Will return current cell, if edge is a boundary edge.
+	 * <li> Added: 12-07-2021 - RW
+	 * </ul>
+	 */
+	public CellBase NextCellAroundEdge()
+	{ return NextHalfEdgeAroundEdge().Cell(); }
+	
 	/** Return from vertex. */
 	public VertexBase FromVertex()
 	{ return from_vertex ; }

@@ -339,6 +339,75 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 	}
 
 	
+	/** Join two cells sharing edge half_edgeA by deleting half_edgeA.
+	 *  <ul> <li> Returns edge incident on the joined cell. </ul>
+	 */
+	public HalfEdgeDCMTBase JoinTwoCells(int ihalf_edgeA)
+		throws Exception
+	{
+		HALF_EDGE_TYPE half_edgeA = HalfEdge(ihalf_edgeA);
+		if (half_edgeA == null) {
+			throw new Exception
+				("Programming error. Argument to JoinTwoCells is not a half edge index.");
+		}
+		
+		if (IsIllegalJoinCells(half_edgeA)) { return null; }
+		
+		HalfEdgeDCMTBase half_edgeB = half_edgeA.NextHalfEdgeAroundEdge();
+		if (half_edgeB == null) {
+			throw new Exception
+				("Programming error. Half edge passed to JoinTwoCells is an edge shared by three or more cells.");
+		}
+		
+		VertexDCMTBase vA = half_edgeA.FromVertex();
+		VertexDCMTBase vB = half_edgeB.FromVertex();
+		CellDCMTBase cellA = half_edgeA.Cell();
+		CellDCMTBase cellB = half_edgeB.Cell();
+		int numvA = cellA.NumVertices();
+		int numvB = cellB.NumVertices();
+		HalfEdgeDCMTBase prevA = half_edgeA.PrevHalfEdgeInCell();
+		HalfEdgeDCMTBase prevB = half_edgeB.PrevHalfEdgeInCell();
+		HalfEdgeDCMTBase nextA = half_edgeA.NextHalfEdgeInCell();
+		HalfEdgeDCMTBase nextB = half_edgeB.NextHalfEdgeInCell();
+		
+		if (!vA.IsIncidentOnMoreThanTwoEdges() || !vB.IsIncidentOnMoreThanTwoEdges()) {
+			// Can't remove an edge if some endpoint only has degree 2.
+			return null;
+		}
+		
+		// Chance cellA.half_edge, if necessary.
+		if (cellA.HalfEdge() == half_edgeA) 
+			{ cellA.SetHalfEdge(half_edgeA.NextHalfEdgeInCell()); }
+		
+		// Change edges in cellB to be in cellA.
+		HalfEdgeDCMTBase half_edge = half_edgeB.NextHalfEdgeInCell();
+		for (int k = 1; k < numvB; k++) {
+			half_edge._SetCell(cellA);
+			half_edge = half_edge.NextHalfEdgeInCell();
+		}
+		
+		// Set number of vertices in cell.
+		cellA.SetNumVertices(numvA + numvB -2);
+		
+		// Relink half edges in cell.
+		_RelinkHalfEdgesInCell(prevA, nextB);
+		_RelinkHalfEdgesInCell(prevB, nextA);
+		
+		// Delete cellB and half_edgeA and half_edgeB.
+		_DeleteHalfEdge(half_edgeA);
+		_DeleteHalfEdge(half_edgeB);
+		_DeleteCell(cellB);
+		
+		// half_edgeA and half_edgeB are not boundary edges,
+		//   but the previous edges in the cell might be boundary edges.
+		vA._MoveBoundaryHalfEdgeToHalfEdgeFrom0();
+		vB._MoveBoundaryHalfEdgeToHalfEdgeFrom0();
+		
+		return nextA;
+	}
+	
+	
+	
 	/** Split edge at midpoint.
 	 *  - Returns new vertex.
 	 */
@@ -404,7 +473,42 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 		return IsIllegalEdgeCollapse
 				(half_edge.FromVertex(), half_edge.ToVertex());
 	}
+	
+	
+	/** Return true if join cells is illegal.
+	 *  <ul> <li> Join cells is illegal if half_edge is a boundary half edge
+	 *  	or more than two cells are incident on the edge
+	 *  	or some endpoint of half edge has degree 2.
+	 *  </ul>
+	 */
+	public boolean IsIllegalJoinCells(HalfEdgeDCMTBase half_edge)
+	{
+		int TWO = 2;
 		
+		if (half_edge.IsBoundary()) { return true; }
+		if (!half_edge.FromVertex().IsIncidentOnMoreThanTwoEdges()) 
+			{ return true; }
+
+		if (!half_edge.ToVertex().IsIncidentOnMoreThanTwoEdges()) 
+			{ return true; }
+		
+		HalfEdgeDCMTBase half_edgeX = half_edge.NextHalfEdgeAroundEdge();
+		if (half_edge != half_edgeX.NextHalfEdgeAroundEdge()) {
+			// More than two cells are incident on edge 
+			//   (half_edge.FromVertex(), half_edge.ToVertex()).
+			return true;
+		}
+		
+		if (CountNumVerticesSharedByTwoCells
+				(half_edge.Cell(), half_edgeX.Cell()) > TWO) {
+			// Cells share more than two vertices.
+			return true;
+		}
+		
+		// Join is LEGAL.
+		return false;
+	}
+	
 	
 	/** Return true if half edge endpoints and v are 
 	 * in a mesh triangle.
@@ -554,6 +658,27 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 		}
 	
 		return false;
+	}
+	
+	
+	/** Count number of vertices shared by two cells. */
+	public int CountNumVerticesSharedByTwoCells
+		(CellDCMTBase cellA, CellDCMTBase cellB)
+	{
+		int num_shared_vertices = 0;
+		
+		cellB.ClearVisitedFlagsInAllVertices();
+		cellA.SetVisitedFlagsInAllVertices(true);
+		
+		HalfEdgeDCMTBase half_edgeB = cellB.HalfEdge();
+		for (int k = 0; k < cellB.NumVertices(); k++) {
+			VertexDCMTBase v = half_edgeB.FromVertex();
+			if (v._IsVisited()) 
+				{ num_shared_vertices++; }
+			half_edgeB = half_edgeB.NextHalfEdgeInCell();
+		}
+		
+		return num_shared_vertices;
 	}
 	
 	

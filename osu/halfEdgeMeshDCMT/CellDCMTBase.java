@@ -28,13 +28,27 @@ public abstract class CellDCMTBase extends CellBase {
 	{ num_vertices = numv; }
 	
 	
+	/** Set visited_flag in all vertices. */
+	protected void SetVisitedFlagsInAllVertices(boolean flag)
+	{
+		HalfEdgeDCMTBase half_edge = HalfEdge();
+		for (int k = 0; k < NumVertices(); k++) {
+			half_edge.FromVertex().visited_flag = flag;
+			half_edge = half_edge.NextHalfEdgeInCell();
+		}
+	}
+	
+	/** Set visited_flag in all cell vertices to false. */
+	protected void ClearVisitedFlagsInAllVertices()
+	{ SetVisitedFlagsInAllVertices(false); }
+	
+	
 	/** Return minimum and maximum cell edge length and
 	 *  cell half edges with those lengths.
 	 */
 	public void ComputeMinMaxEdgeLengthSquared
 	(MinMaxInfo min_max_info)
 	{
-		boolean flag_found = false;
 		
 		if (NumVertices() == 0) {
 			// Empty cell. Set values to defaults and return.
@@ -71,7 +85,7 @@ public abstract class CellDCMTBase extends CellBase {
 	 *  - Note: cos_min_angle >= cos_max_angle.
 	 *  - The smallest angle is 0 and cos(0) = 1.
 	 *  - The largest angle is pi and cos(pi) = -1.
-	 *  @param[out] min_max_info Sets min_max_info.
+	 *  @param min_max_info Sets min_max_info.
 	 *  - min_max_info.minVal is the min cosine.
 	 *  - min_max_info.imin is the index of the half edge 
 	 *  	whose from_vertex has min cosine and MAX angle.

@@ -32,6 +32,28 @@ public abstract class VertexDCMTBase extends VertexBase {
 	{ return ((HalfEdgeDCMTBase) super.FindIncidentHalfEdge(iv)); }
 	
 	
+	/** Return true if vertex is incident on more than two edges. */
+	public boolean IsIncidentOnMoreThanTwoEdges()
+	{
+		int TWO = 2;
+		int num_half_edges_from = NumHalfEdgesFrom();
+		
+		if (num_half_edges_from > TWO) { return true; }
+		if (!IsBoundary()) { return false; }
+		
+		if (num_half_edges_from == TWO) {
+			// Boundary vertex in two cells must have 
+			//   at least three incident edges.
+			return true;
+		}
+		else {
+			// Boundary vertex is in just one cell and has exactly
+			//   two incident edges.
+			return false;
+		}
+	}
+	
+	
 	// *** Internal methods ***
 	
 	
