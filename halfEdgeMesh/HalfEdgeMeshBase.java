@@ -1,7 +1,10 @@
 package halfEdgeMesh;
 
-/** \file HalfEdgeMeshBase.java
+/** 
+ * \file HalfEdgeMeshBase.java
  * Class for half edge mesh.
+ *  @Version 0.0.3
+ *  @author Rephael Wenger
  */
 
 /*
@@ -311,6 +314,26 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 		half_edgeB.next_half_edge_around_edge = temp;
 	}
 	
+	
+	/**
+	 * Merge two linked lists of half edges around an edge to form
+	 *   a single linked list.
+	 * - Added by R. Wenger: 11-23-2023
+	 */
+	protected void _MergeHalfEdgesAroundEdge
+	(HalfEdgeBase half_edgeA, HalfEdgeBase half_edgeB)
+	{
+		final HalfEdgeBase next_half_edge_around_edgeA =
+			half_edgeA.NextHalfEdgeAroundEdge();
+		final HalfEdgeBase next_half_edge_around_edgeB =
+			half_edgeB.NextHalfEdgeAroundEdge();
+		half_edgeA.next_half_edge_around_edge = 
+			next_half_edge_around_edgeB;
+		half_edgeB.next_half_edge_around_edge =
+			next_half_edge_around_edgeA;
+	}
+	
+	
 	/** Add half edge with index ihalf_edge to half_edge_hashtable.
 	 * - Returns new half edge.
 	 * @pre No existing half edge has index ihalf_edge.
@@ -325,7 +348,6 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 		_max_half_edge_index = Math.max(_max_half_edge_index, ihalf_edge);
 		return half_edge;
 	}
-	
 	
 	/** Add new half edge.
 	 * 	- Returns half edge.
@@ -680,6 +702,31 @@ public abstract class HalfEdgeMeshBase<VERTEX_TYPE extends VertexBase, HALF_EDGE
 				return;	
 			}	
 		}
+	}
+	
+	
+	/** 
+	 * Remove half edge from cell. 
+	 * - Added by R. Wenger: 11-23-2023.
+	 */
+	protected void _RemoveHalfEdgeFromCell(HalfEdgeBase half_edge)
+	{
+		CellBase cell = half_edge.Cell();
+		HalfEdgeBase prev_half_edge_in_cell = half_edge.PrevHalfEdgeInCell();
+		HalfEdgeBase next_half_edge_in_cell = half_edge.NextHalfEdgeInCell();
+
+		prev_half_edge_in_cell.next_half_edge_in_cell =
+			next_half_edge_in_cell;
+		next_half_edge_in_cell.prev_half_edge_in_cell =
+			prev_half_edge_in_cell;
+		
+		cell.num_vertices = cell.num_vertices-1;
+		if (cell.HalfEdge() == half_edge)
+		{ cell.half_edge = next_half_edge_in_cell; }
+		
+		// Unset .prev_half_edge_in_cell and .next_half_edge_in_cell.
+		half_edge.prev_half_edge_in_cell = null;
+		half_edge.next_half_edge_in_cell = null;
 	}
 	
 	
