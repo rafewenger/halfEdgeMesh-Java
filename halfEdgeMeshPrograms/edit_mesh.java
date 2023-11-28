@@ -1,5 +1,12 @@
 package halfEdgeMeshPrograms;
 
+/** 
+ *  \file edit_mesh - Some simple mesh edit routines.
+ *  - Interactively collapse, split, join mesh edges and cells.
+ *  - Uses data structure HMeshEditBase().
+ *  - Version 0.0.3
+ */
+
 import static java.lang.System.out;
 import static java.lang.System.err;
 import static java.lang.Math.*;
@@ -9,7 +16,6 @@ import java.util.*;
 import halfEdgeMesh.*;
 import halfEdgeMeshEdit.*;
 import halfEdgeMeshMeasure.*;
-
 
 
 /** Some simple mesh edit routines.
@@ -1025,9 +1031,9 @@ public class edit_mesh {
 	
 	static void usage_msg(PrintStream out)
 	{
-		out.println("Usage: decimate_mesh [OPTIONS] <input filename> [<output_filename>]");
+		out.println("Usage: edit_mesh [OPTIONS] <input filename> [<output_filename>]");
 		out.println("OPTIONS:");
-		out.println("  [-collapse_edges] [-split_long_edges]");
+		out.println("  [-collapse_edges] [-split_edges]");
 		out.println("  [-split_cells] [-join_cells]");
 		out.println("  [-allow_non_manifold] [-fail_on_non_manifold]");
 		out.println("  [-s | -terse] [-no_warn] [-time] [-h]");

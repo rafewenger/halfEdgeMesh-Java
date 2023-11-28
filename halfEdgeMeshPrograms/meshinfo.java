@@ -1,5 +1,14 @@
 package halfEdgeMeshPrograms;
 
+/** 
+ *  @file edit_mesh - Some simple mesh edit routines.
+ *  - Interactively collapse, split, join mesh edges and cells.
+ *  - Uses data structure HMeshEditBase().
+ *  @version 0.1.0
+ *  @author Rephael Wenger
+ */
+
+
 import static java.lang.System.out;
 import java.io.*;
 import java.util.*;
@@ -8,10 +17,6 @@ import halfEdgeMesh.*;
 import halfEdgeMeshMeasure.*;
 
 
-
-/** Program to print HalfEdgeMesh information.
- * @author Rephael Wenger
- */
 public class meshinfo {
 
 	static String input_filename;

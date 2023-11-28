@@ -1,8 +1,11 @@
 package halfEdgeMeshEdit;
 
-/** \file HMeshEditBase.java
+/** 
+ * @file HMeshEditBase.java
  * Extension of half edge mesh supporting mesh edit operations.
- * Supports SplitCell, JoinTwoCells, and CollapseEdge.
+ * - Supports SplitCell, JoinTwoCells, and CollapseEdge.
+ * @Version 0.1.0
+ * @author Rephael Wenger
  */
 
 /*

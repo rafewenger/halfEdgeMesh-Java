@@ -1,14 +1,34 @@
 package halfEdgeMesh;
 
 /** 
- * \file HalfEdgeMeshBase.java
+ * @file HalfEdgeMeshBase.java
  * Class for half edge mesh.
- *  @Version 0.0.3
+ * @version 0.1.0
+ */
+
+/**
+ * @mainpage Half Edge Mesh (Java implementation):
+ * The mesh is stored in HalfEdgeMesh.
+ * - Each vertex, half edge and cell is in its own class.
+ * - All allocations of vertices, half edges and cells should be done
+ *   in HalfEdgeMeshBase or a subclass of HalfEdgeMeshBase.
+ * - Each vertex, half edge and cell can be identified by a reference
+ *   to the object containing the vertex, half edge or cell, or
+ *   by an integer index (identifier) of the vertex, half edge or cell.
+ * - This is NOT a very efficient/compact implementation of half edges.
+ * - This implementation is meant to be simple and (hopefully) robust
+ *   for use in OSU CSE homeworks and prototypes.
+ * - Note: Many of the simpler get functions do not check their arguments,
+ *   e.g. Objects that are null or indices in range.
+ *    Such checks would be too time consuming for large meshes.
+ *    The calling function is responsible to ensure that objects
+ *    not null and indices are in a specified range.
  *  @author Rephael Wenger
+ *  @version 0.1.0
  */
 
 /*
-* Copyright (C) 2021 Rephael Wenger
+* Copyright (C) 2021-2023 Rephael Wenger
 * 
 * This library is free software; you can redistribute it and/or
 * modify it under the terms of the GNU Lesser General Public License

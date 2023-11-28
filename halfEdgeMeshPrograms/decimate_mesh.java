@@ -1,5 +1,12 @@
 package halfEdgeMeshPrograms;
 
+/** 
+ *  @file decimate_mesh - Some simple mesh decimation routines.
+ *  - Collapse, split, join mesh edges and cells.
+ *  - Uses data structure HMeshEditBase().
+ *  @version 0.1.0
+ */
+
 import static java.lang.System.out;
 import static java.lang.System.err;
 import static java.lang.Math.*;
@@ -10,12 +17,6 @@ import halfEdgeMesh.*;
 import halfEdgeMeshEdit.*;
 import halfEdgeMeshMeasure.*;
 
-
-
-/** Some simple mesh decimation routines.
- *  - Uses data structure HMeshEditBase().
- *
- */
 public class decimate_mesh {
 
 	static String input_filename;
