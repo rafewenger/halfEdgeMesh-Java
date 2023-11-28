@@ -1,9 +1,7 @@
 package halfEdgeMeshPrograms;
 
 /** 
- *  @file edit_mesh - Some simple mesh edit routines.
- *  - Interactively collapse, split, join mesh edges and cells.
- *  - Uses data structure HMeshEditBase().
+ *  @file meshinfo - Print mesh information.
  *  @version 0.1.0
  *  @author Rephael Wenger
  */
@@ -16,7 +14,16 @@ import java.util.*;
 import halfEdgeMesh.*;
 import halfEdgeMeshMeasure.*;
 
-
+/**
+ * Print mesh information.
+ * <ul>
+ * <li> Print number of vertices, edges, cells, and boundary edges.
+ * <li> Print minimum and maximum edge lengths, minimum ratio
+ *   of shortest to longest edge length in any cell,
+ *   and minimum and maximum cell angles.
+ * <li> Prints whether or not mesh is an oriented manifold.
+ * </ul>
+ */
 public class meshinfo {
 
 	static String input_filename;

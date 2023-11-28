@@ -1,27 +1,29 @@
 package halfEdgeMeshMeasure;
 
 /**
- *  \file MeasureMeshBase.java
+ *  @file MeasureMeshBase.java
  *  Functions for computing mesh edge lengths, angles, etc.
+ *  @Version 0.1.0
+ *  @author Rephael Wenger
  */
 
 /*
-* Copyright (C) 2021-2023 Rephael Wenger
-* 
-* This library is free software; you can redistribute it and/or
-* modify it under the terms of the GNU Lesser General Public License
-* (LGPL) as published by the Free Software Foundation; either
-* version 2.1 of the License, or any later version.
-* 
-* This library is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* Lesser General Public License for more details.
-* 
-* You should have received a copy of the GNU Lesser General Public
-* License along with this library; if not, write to the Free Software
-* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*/
+ * Copyright (C) 2021-2023 Rephael Wenger
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
+ * (LGPL) as published by the Free Software Foundation; either
+ * version 2.1 of the License, or any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
 import java.util.*;
 
@@ -30,11 +32,13 @@ import halfEdgeMesh.HalfEdgeBase;
 import halfEdgeMesh.HalfEdgeMeshBase;
 import halfEdgeMesh.VertexBase;
 
-/// Class to measure mesh (edge lengths, angles, etc.)
+/**
+ * Class to measure mesh (edge lengths, angles, etc.)
+ */
 public abstract class MeasureMeshBase
-<VERTEX_TYPE extends VertexBase, HALF_EDGE_TYPE extends HalfEdgeBase,
+	<VERTEX_TYPE extends VertexBase, HALF_EDGE_TYPE extends HalfEdgeBase,
 	CELL_TYPE extends CellBase,
-	MESH_TYPE extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE>> {
+	MESH_TYPE extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> > {
 	
 	/**
 	 * Compute edge length squared of edge half_edge.

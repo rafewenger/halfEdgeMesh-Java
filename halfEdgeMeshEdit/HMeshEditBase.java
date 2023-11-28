@@ -35,12 +35,10 @@ import halfEdgeMeshMeasure.ComputeGeom;
 import halfEdgeMesh.HalfEdgeMeshBase;
 
 
-// *** DEBUG ***
-import static java.lang.System.out;
 
-
-/** Base class for storing half edge mesh.
- *  @see halfEdgeMesh Package halfEdgeMesh documentation.
+/** 
+ *  Extension of halfEdgeMesh with routines to collapse, split, join, triangulate
+ *    mesh edges and cells.
  */
 public abstract class HMeshEditBase
 <VERTEX_TYPE extends VertexBase, HALF_EDGE_TYPE extends HalfEdgeBase, CELL_TYPE extends CellBase>

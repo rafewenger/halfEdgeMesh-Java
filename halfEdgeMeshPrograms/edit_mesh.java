@@ -19,8 +19,10 @@ import halfEdgeMeshMeasure.*;
 
 
 /** Some simple mesh edit routines.
- *  - Uses data structure HMeshEditBase().
- *  - Collapse, join, split edges and cells.
+ *  <ul>
+ *  <li> Uses data structure HMeshEditBase().
+ *  <li> Collapse, join, split edges and cells.
+ *  </ul>
  */
 public class edit_mesh {
 

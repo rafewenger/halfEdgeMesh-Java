@@ -17,6 +17,13 @@ import halfEdgeMesh.*;
 import halfEdgeMeshEdit.*;
 import halfEdgeMeshMeasure.*;
 
+/** 
+ *  decimate_mesh - Some simple mesh decimation routines.
+ *  <ul>
+ *  <li> Collapse, split, join mesh edges and cells.
+ *  <li> Uses data structure HMeshEditBase().
+ *  </ul>
+ */
 public class decimate_mesh {
 
 	static String input_filename;
