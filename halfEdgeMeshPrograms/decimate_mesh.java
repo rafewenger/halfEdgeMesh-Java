@@ -468,8 +468,11 @@ public class decimate_mesh {
 	
 	// *** Triangulation routines. ***
 	
-	/** Triangulate cell from vertex half_edge0.FromVertex(). */
-	protected static void triangulate_cell_from_vertex
+	/** 
+	 * Triangulate cell from vertex half_edge0.FromVertex(). 
+	 * - Return true if triangulation succeeds.
+	 */
+	protected static boolean triangulate_cell_from_vertex
 	(HMeshEditC mesh, int ihalf_edge,
 		boolean flag_terse, boolean flag_no_warn, boolean flag_check)
 				throws Exception
@@ -478,11 +481,24 @@ public class decimate_mesh {
 		final int iv = half_edge.FromVertexIndex();
 		final int icell = half_edge.CellIndex();
 		final CellBase cell = half_edge.Cell();
+		final String icell_str = String.valueOf(icell);
+		final String iv_str = String.valueOf(iv);
 		
 		if (cell.IsTriangle()) {
 			// Cell is already a triangle.
-			return;
+			return false;
 		}
+		
+		if (mesh.DoesTriangulateCellFromVertexChangeTopology(ihalf_edge)) {
+			if (!flag_no_warn) {
+				out.println("Triangulating cell " + icell_str +
+					" from vertex " + iv_str + " changes mesh topology.");
+				out.println("  Skipping triangulation of cell " + 
+					icell_str + " from vertex " + iv_str + ".");
+			}
+			return false;
+		}
+
 		
 		if (!flag_terse) {
 			out.println("Triangulating cell " + String.valueOf(icell) + 
@@ -493,11 +509,44 @@ public class decimate_mesh {
 			
 		if (flag_check)
 			{ check_mesh(mesh, flag_no_warn); }
+		
+		return true;
 	}
 	
 
-	/** Triangulate cell from vertex with largest angle. */
-	protected static void
+	/**
+	 * Triangulate cell containing half edge.
+	 * - Attempt to triangulate from half_edgeA.FromVertex().
+	 * - If triangulation fails, try other vertices.
+	 */
+	protected static boolean
+		triangulate_cell
+			(HMeshEditC mesh, int ihalf_edgeA,
+			boolean flag_terse, boolean flag_no_warn, boolean flag_check)
+		throws Exception
+	{
+		HalfEdgeBase half_edge = mesh.HalfEdge(ihalf_edgeA);
+		final CellBase cellA = half_edge.Cell();
+		for (int i = 0; i < cellA.NumVertices(); i++) {
+			int ihalf_edge = half_edge.Index();
+			if (triangulate_cell_from_vertex
+					(mesh, ihalf_edge, flag_terse, flag_no_warn, flag_check)) 
+			{ return true; }
+			half_edge = half_edge.NextHalfEdgeInCell();
+		}
+		
+		// Unable to find acceptable triangulation.
+		return false;
+	}
+	
+	
+	/** 
+	 * Triangulate cell from vertex with largest angle. 
+	 * - Attempt to triangulate from vertex with largest angle.
+	 * - If triangulation fails, try other vertices.
+	 * - Revised by R. Wenger: 12-11-2023
+	 */
+	protected static boolean
 		triangulate_cell_from_vertex_with_largest_angle
 			(HMeshEditC mesh, CellBase cell,
 			boolean flag_terse, boolean flag_no_warn, boolean flag_check)
@@ -512,7 +561,7 @@ public class decimate_mesh {
 		// cos_min_max_angle_info.imax is the index of the half edge
 		//   whose from_vertex has min cosine and MAX angle.
 		int ihalf_edge_max = cos_min_max_angle_info.imax;
-		triangulate_cell_from_vertex
+		return triangulate_cell
 			(mesh, ihalf_edge_max, flag_terse, flag_no_warn, flag_check);
 	}
 	

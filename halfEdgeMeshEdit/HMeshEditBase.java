@@ -35,7 +35,6 @@ import halfEdgeMeshMeasure.ComputeGeom;
 import halfEdgeMesh.HalfEdgeMeshBase;
 
 
-
 /** 
  *  Extension of halfEdgeMesh with routines to collapse, split, join, triangulate
  *    mesh edges and cells.
@@ -371,7 +370,6 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 		final VertexBase vB = half_edgeB.FromVertex();
 		final HalfEdgeBase half_edge = FindEdge(vA, vB);
 		if (half_edge != null) {
-			// Mesh is non-conforming!?!
 			// Some cell in mesh intersects half_edgeA.Cell() in (vA,vB)
 			//   but (vA,vB) is not an edge of half_edgeA.Cell().
 			// Split would create edge (vA,vB) in 3 or more cells.
@@ -382,6 +380,42 @@ extends HalfEdgeMeshBase<VERTEX_TYPE,HALF_EDGE_TYPE,CELL_TYPE> {
 	}
 	
 
+	/**
+	 * Return true if triangulate cell from vertex changes mesh topology.
+	 * - Triangulate cell from vertex changes mesh topology
+	 *     if some triangulation diagonal is already a mesh edge.
+	 */
+	public boolean DoesTriangulateCellFromVertexChangeTopology(int ihalf_edgeA)
+	{
+		final int NUM_VERT_PER_TRIANGLE = 3;
+		final HalfEdgeBase half_edgeA = HalfEdge(ihalf_edgeA);
+		final CellBase cellA = half_edgeA.Cell();
+		final VertexBase vA = half_edgeA.FromVertex();
+		
+		if (cellA.NumVertices() <= NUM_VERT_PER_TRIANGLE) {
+			// Triangulate cell from vertex does nothing.
+			return false;
+		}
+		
+		HalfEdgeBase half_edgeB = half_edgeA.NextHalfEdgeInCell();
+		for (int i = 2; i < cellA.NumVertices()-1; i++) {
+			half_edgeB = half_edgeB.NextHalfEdgeInCell();
+			final VertexBase vB = half_edgeB.FromVertex();
+			final HalfEdgeBase half_edge = FindEdge(vA, vB);
+			if (half_edge != null) {
+				// Some cell in mesh has edge (vA,vB).
+				// Triangulation would change mesh topology
+				//   possibly creating edge (vA,vB) 
+				//   in 3 or more cells.
+				return true;
+			}
+		}
+		
+		
+		return false;
+	}
+	
+	
 	/**
 	 * Return true if join cells is illegal.
 	 * - Join cells is illegal if ihalf_edge is a boundary half_edge
